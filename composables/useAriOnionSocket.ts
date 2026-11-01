@@ -5,7 +5,7 @@ import {
   createInitialState,
   type PlayerRole,
   type PublicGameState,
-} from '../shared/arionion/contracts'
+} from '~/shared/arionion/contracts'
 
 export type ClientEventKind = 'request' | 'fact' | 'rejection'
 export interface ClientEventRecord {

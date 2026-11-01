@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { EVENTS } from '../shared/arionion/contracts'
-import type { ClientEventRecord } from '../composables/useAriOnionSocket'
+import { EVENTS } from '~/shared/arionion/contracts'
+import type { ClientEventRecord } from '~/composables/useAriOnionSocket'
 
 const props = defineProps<{ events: ClientEventRecord[]; hideProduction: boolean }>()
 const emit = defineEmits<{ 'update:hideProduction': [value: boolean] }>()
