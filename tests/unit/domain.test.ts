@@ -23,8 +23,8 @@ describe('domain progression', () => {
     const first = requestNextConstruction(opened, player, 1_000)
     expect(first.state.rawOnions).toBe(70)
     expect(first.state.workers.busy).toBe(1)
-    expect(first.state.construction?.kind).toBe('bed')
-    const completed = completeConstruction(first.state, first.state.construction!.id)
+    expect(first.state.constructions[0]?.kind).toBe('bed')
+    const completed = completeConstruction(first.state, first.state.constructions[0]!.id)
     expect(completed.state.buildings.beds).toBe(1)
     expect(completed.state.workers.busy).toBe(0)
   })
@@ -58,14 +58,13 @@ describe('domain progression', () => {
       }
       if (kind === 'cannery') state.curedOnions = 40
       const started = requestNextConstruction(state, player, 1_000 + index)
-      expect(started.state.construction?.kind).toBe(kind)
-      state = completeConstruction(started.state, started.state.construction!.id).state
+      expect(started.state.constructions.at(-1)?.kind).toBe(kind)
+      state = completeConstruction(started.state, started.state.constructions.at(-1)!.id).state
     }
     expect(state.buildings).toEqual({ beds: 2, curingSheds: 1, canneries: 1 })
   })
 
   it.each([
-    ['another construction is active', (state: ReturnType<typeof createInitialState>) => { state.construction = { id: 'x', kind: 'bed', requestedBy: 'Ari', completesAt: 9_000 } }],
     ['there is no free worker', (state: ReturnType<typeof createInitialState>) => { state.workers.busy = 2 }],
     ['there are not enough onions', (state: ReturnType<typeof createInitialState>) => { state.rawOnions = 0; state.rawOnionLots = [] }],
   ])('rejects without mutation when %s', (_label, arrange) => {
@@ -74,6 +73,14 @@ describe('domain progression', () => {
     const before = structuredClone(state)
     expect(requestNextConstruction(state, player, 1).rejection).toBeDefined()
     expect(state).toEqual(before)
+  })
+
+  it('allows two simultaneous works when two workers are free', () => {
+    const state = openSeason(createInitialState(), master, 0).state
+    const first = requestNextConstruction(state, player, 1)
+    const second = requestNextConstruction(first.state, player, 2)
+    expect(second.state.constructions).toHaveLength(2)
+    expect(second.state.workers.busy).toBe(2)
   })
 
   it('allows only players to buy upgrades after the chain is complete', () => {

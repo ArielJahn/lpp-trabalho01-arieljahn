@@ -37,7 +37,7 @@ export interface GameState {
     curingSheds: number
     canneries: number
   }
-  construction: Construction | null
+  constructions: Construction[]
   upgradeLevel: number
 }
 
@@ -86,7 +86,7 @@ export function createInitialState(): GameState {
     rawOnionLots: [{ id: 'initial', quantity: 100, expiresAt: null }],
     workers: { busy: 0, limit: 2 },
     buildings: { beds: 0, curingSheds: 0, canneries: 0 },
-    construction: null,
+    constructions: [],
     upgradeLevel: 0,
   }
 }

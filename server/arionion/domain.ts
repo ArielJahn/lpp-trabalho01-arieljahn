@@ -26,7 +26,8 @@ export function closeSeason(state: GameState, actor: PlayerIdentity): Transition
 }
 
 export function nextBuilding(state: GameState): BuildingKind | null {
-  if (state.buildings.beds < 2) return 'bed'
+  const plannedBeds = state.buildings.beds + state.constructions.filter(item => item.kind === 'bed').length
+  if (plannedBeds < 2) return 'bed'
   if (state.buildings.curingSheds < 1) return 'curing-shed'
   if (state.buildings.canneries < 1) return 'cannery'
   return null
@@ -44,9 +45,9 @@ export function consumeRawOnions(state: GameState, amount: number): { state: Gam
 export function requestNextConstruction(state: GameState, actor: PlayerIdentity, now: number): Transition {
   if (actor.role !== 'player') return reject(state, 'Somente Jogadores podem construir')
   if (state.phase !== 'open') return reject(state, 'A temporada não está aberta')
-  if (state.construction) return reject(state, 'Já existe uma obra em andamento')
   if (state.workers.busy >= state.workers.limit) return reject(state, 'Sem colhedor livre')
   const kind = nextBuilding(state); if (!kind) return reject(state, 'A cadeia já está completa')
+  if (kind === 'curing-shed' && state.buildings.beds < 2) return reject(state, 'Aguarde a conclusão dos dois canteiros')
   const cost = kind === 'bed' ? RULES.bedCost : kind === 'curing-shed' ? RULES.curingShedCost : RULES.canneryCost
   if (kind === 'cannery') {
     if (state.curedOnions < cost) return reject(state, 'Cebolas curadas insuficientes')
@@ -54,17 +55,19 @@ export function requestNextConstruction(state: GameState, actor: PlayerIdentity,
   let next = structuredClone(state)
   if (kind === 'cannery') next.curedOnions -= cost; else next = consumeRawOnions(next, cost).state
   const id = `obra-${state.seasonId}-${now}`
-  next.workers.busy += 1; next.construction = { id, kind, requestedBy: actor.name, completesAt: now + RULES.constructionDurationMs }
-  return result(next, { facts: [{ event: 'construcao.iniciada', cause: 'construcao.solicitada', data: { kind, by: actor.name } }], effects: [{ type: 'construction.complete', dueAt: next.construction.completesAt, seasonId: next.seasonId, data: { id } }] })
+  const construction = { id, kind, requestedBy: actor.name, completesAt: now + RULES.constructionDurationMs }
+  next.workers.busy += 1; next.constructions.push(construction)
+  return result(next, { facts: [{ event: 'construcao.iniciada', cause: 'construcao.solicitada', data: { kind, by: actor.name } }], effects: [{ type: 'construction.complete', dueAt: construction.completesAt, seasonId: next.seasonId, data: { id } }] })
 }
 
 export function completeConstruction(state: GameState, constructionId: string): Transition {
-  if (!state.construction || state.construction.id !== constructionId) return result(state)
-  const next = structuredClone(state); const kind = next.construction!.kind
+  const construction = state.constructions.find(item => item.id === constructionId)
+  if (!construction) return result(state)
+  const next = structuredClone(state); const kind = construction.kind
   if (kind === 'bed') next.buildings.beds += 1
   if (kind === 'curing-shed') next.buildings.curingSheds += 1
   if (kind === 'cannery') next.buildings.canneries += 1
-  next.construction = null; next.workers.busy -= 1
+  next.constructions = next.constructions.filter(item => item.id !== constructionId); next.workers.busy -= 1
   return result(next, { facts: [{ event: 'construcao.concluida', cause: 'construcao.iniciada (temporizador)', data: { kind } }] })
 }
 

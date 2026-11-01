@@ -14,6 +14,7 @@ describe('AriOnion contracts', () => {
     expect(state.workers).toEqual({ busy: 0, limit: 2 })
     expect(state.buildings).toEqual({ beds: 0, curingSheds: 0, canneries: 0 })
     expect(state.upgradeLevel).toBe(0)
+    expect(state.constructions).toEqual([])
     expect(state.rawOnionLots).toHaveLength(1)
     expect(state.rawOnionLots[0]?.quantity).toBe(100)
   })
