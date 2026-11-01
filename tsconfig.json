@@ -1,3 +1,8 @@
 {
-  "extends": "./.nuxt/tsconfig.json"
+  "extends": "./.nuxt/tsconfig.json",
+  "exclude": [
+    "tests",
+    "vitest.config.ts",
+    "vitest.config.nuxt.ts"
+  ]
 }
