@@ -8,8 +8,13 @@ import {
 import { upgradeCost } from '../../shared/arionion/rules'
 import {
   closeSeason,
+  completeConstruction,
+  expireLots,
   nextBuilding,
   openSeason,
+  processCannery,
+  processCuring,
+  produceOnions,
   requestNextConstruction,
   requestUpgrade,
   type ScheduledEffect,
@@ -33,6 +38,7 @@ export interface GameRuntime {
   disconnect(socketId: string): void
   dispatch(socketId: string, event: string, payload?: unknown): RuntimeEmission[]
   snapshot(): PublicGameState
+  processEffect(effect: ScheduledEffect): RuntimeEmission[]
   reset(): void
 }
 
@@ -75,11 +81,46 @@ export function createGameRuntime(options: { now?: () => number; scheduler?: Sch
       if (payload !== undefined && (typeof payload !== 'object' || payload === null || Object.keys(payload).length > 0)) {
         return reject(socketId, event, 'Dados do pedido inválidos')
       }
-      if (event === EVENTS.openingRequested) return apply(socketId, event, openSeason(state, actor, now()))
+      if (event === EVENTS.openingRequested) {
+        const at = now()
+        const emissions = apply(socketId, event, openSeason(state, actor, at))
+        if (state.phase === 'open') {
+          for (const type of ['beds.produce', 'curing.process', 'cannery.process']) {
+            options.scheduler?.schedule({ type, dueAt: at + 5_000, seasonId: state.seasonId })
+          }
+          options.scheduler?.schedule({ type: 'onions.expire', dueAt: at + 20_000, seasonId: state.seasonId })
+        }
+        return emissions
+      }
       if (event === EVENTS.constructionRequested) return apply(socketId, event, requestNextConstruction(state, actor, now()))
       if (event === EVENTS.upgradeRequested) return apply(socketId, event, requestUpgrade(state, actor))
-      if (event === EVENTS.closingRequested) return apply(socketId, event, closeSeason(state, actor))
+      if (event === EVENTS.closingRequested) {
+        const seasonId = state.seasonId
+        const emissions = apply(socketId, event, closeSeason(state, actor))
+        if (state.phase === 'closed') options.scheduler?.cancelSeason?.(seasonId)
+        return emissions
+      }
       return reject(socketId, event, 'Evento desconhecido')
+    },
+    processEffect(effect) {
+      if (state.phase !== 'open' || effect.seasonId !== state.seasonId) return []
+      let transition: Transition
+      if (effect.type === 'construction.complete') {
+        transition = completeConstruction(state, String(effect.data?.id ?? ''))
+      } else if (effect.type === 'onions.expire') {
+        transition = expireLots(state, effect.dueAt)
+      } else if (effect.type === 'beds.produce') {
+        transition = produceOnions(state, effect.dueAt)
+        options.scheduler?.schedule({ type: 'onions.expire', dueAt: effect.dueAt + 20_000, seasonId: state.seasonId })
+      } else if (effect.type === 'curing.process') {
+        transition = processCuring(state)
+      } else if (effect.type === 'cannery.process') {
+        transition = processCannery(state)
+      } else return []
+      if (effect.type !== 'construction.complete' && effect.type !== 'onions.expire') {
+        options.scheduler?.schedule({ ...effect, dueAt: effect.dueAt + 5_000 })
+      }
+      return apply('scheduler', effect.type, transition)
     },
     snapshot,
     reset() { state = createInitialState(); players.clear() },

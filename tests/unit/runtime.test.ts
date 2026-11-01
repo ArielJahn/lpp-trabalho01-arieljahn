@@ -40,4 +40,18 @@ describe('authoritative runtime', () => {
     expect(runtime.snapshot().workers.busy).toBe(2)
     expect(runtime.snapshot().rawOnions).toBe(40)
   })
+
+  it('applies scheduled construction and production effects on the authoritative state', () => {
+    const scheduled: import('../../server/arionion/domain').ScheduledEffect[] = []
+    const runtime = createGameRuntime({ now: () => 0, scheduler: { schedule: effect => scheduled.push(effect) } })
+    runtime.connect({ socketId: 'm', name: 'Mestre', role: 'master' })
+    runtime.connect({ socketId: 'p', name: 'Ari', role: 'player' })
+    runtime.dispatch('m', EVENTS.openingRequested)
+    runtime.dispatch('p', EVENTS.constructionRequested)
+    const completion = scheduled.find(effect => effect.type === 'construction.complete')!
+    expect(runtime.processEffect(completion)[0]?.event).toBe(EVENTS.constructionCompleted)
+    const production = { type: 'beds.produce', dueAt: 13_000, seasonId: 1 }
+    expect(runtime.processEffect(production)[0]?.event).toBe(EVENTS.resourceProduced)
+    expect(runtime.snapshot().rawOnions).toBe(80)
+  })
 })

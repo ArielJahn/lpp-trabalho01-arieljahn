@@ -1,5 +1,5 @@
 import type { BuildingKind, GameState, PlayerIdentity } from '../../shared/arionion/contracts'
-import { RULES, upgradeCost } from '../../shared/arionion/rules'
+import { RULES, upgradeCost, yieldMultiplier } from '../../shared/arionion/rules'
 
 export interface DomainRejection { reason: string }
 export interface DomainFact { event: string; cause: string; data?: Record<string, unknown> }
@@ -84,4 +84,43 @@ export function requestUpgrade(state: GameState, actor: PlayerIdentity): Transit
   return result(next, {
     facts: [{ event: 'melhoria.concluida', cause: 'melhoria.solicitada', data: { level: next.upgradeLevel, cost } }],
   })
+}
+
+export function expireLots(state: GameState, at: number): Transition {
+  if (state.phase !== 'open') return result(state)
+  const expired = state.rawOnionLots.filter(lot => lot.expiresAt !== null && lot.expiresAt <= at)
+  const quantity = expired.reduce((total, lot) => total + lot.quantity, 0)
+  if (!quantity) return result(state)
+  const next = structuredClone(state)
+  const ids = new Set(expired.map(lot => lot.id))
+  next.rawOnionLots = next.rawOnionLots.filter(lot => !ids.has(lot.id))
+  next.rawOnions -= quantity
+  return result(next, { facts: [{ event: 'cebola.brotada', cause: 'temporizador', data: { quantity } }] })
+}
+
+export function produceOnions(state: GameState, at: number): Transition {
+  if (state.phase !== 'open' || state.buildings.beds < 1) return result(state)
+  const quantity = Math.floor(state.buildings.beds * RULES.bedProduction * yieldMultiplier(state.upgradeLevel))
+  const next = structuredClone(state)
+  next.rawOnions += quantity
+  next.rawOnionLots.push({ id: `lote-${state.seasonId}-${at}`, quantity, expiresAt: at + RULES.sproutingDurationMs })
+  return result(next, { facts: [{ event: 'recurso.produzido', cause: 'temporizador', data: { resource: 'raw-onion', quantity, origin: 'beds' } }] })
+}
+
+export function processCuring(state: GameState): Transition {
+  if (state.phase !== 'open' || state.buildings.curingSheds < 1 || state.rawOnions < 1) return result(state)
+  const capacity = Math.floor(RULES.curingCapacity * yieldMultiplier(state.upgradeLevel))
+  const consumed = consumeRawOnions(state, Math.min(capacity, state.rawOnions))
+  const next = consumed.state
+  next.curedOnions += consumed.consumed
+  return result(next, { facts: [{ event: 'recurso.produzido', cause: 'temporizador', data: { resource: 'cured-onion', quantity: consumed.consumed, origin: 'curing-shed' } }] })
+}
+
+export function processCannery(state: GameState): Transition {
+  if (state.phase !== 'open' || state.buildings.canneries < 1 || state.curedOnions < RULES.canneryInput) return result(state)
+  const next = structuredClone(state)
+  const quantity = Math.floor(RULES.canneryOutput * yieldMultiplier(state.upgradeLevel))
+  next.curedOnions -= RULES.canneryInput
+  next.preserves += quantity
+  return result(next, { facts: [{ event: 'recurso.produzido', cause: 'temporizador', data: { resource: 'preserve', quantity, consumed: RULES.canneryInput, origin: 'cannery' } }] })
 }
