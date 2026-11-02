@@ -1,4 +1,6 @@
 import { EVENTS, type PublicGameState } from '~/shared/arionion/contracts'
+import { VISUAL_ASSETS } from './visualAssets'
+import { createReactionQueue, reactionForEvent, type VisualReaction } from './villageReactions'
 
 export interface VillagePayload {
   state?: PublicGameState
@@ -66,89 +68,176 @@ export function createOnionVillageAdapter(): OnionVillageAdapter {
   }
 }
 
-export async function createOnionVillage(container: HTMLElement): Promise<VillageDriver> {
+export async function createOnionVillage(container: HTMLElement, options: { reducedMotion?: boolean } = {}): Promise<VillageDriver> {
   const Phaser = (await import('phaser')).default
+  const reducedMotion = options.reducedMotion ?? false
+  const reactions = createReactionQueue(6)
   let scene: any
   let game: any
+  let observer: ResizeObserver | null = null
+  let destroyed = false
 
   class OnionScene extends Phaser.Scene {
+    background: any
     structures: any[] = []
-    overlay: any
+    workers: any[] = []
+    transients: any[] = []
     banner: any
-    points: Array<{ x: number; y: number }> = []
+    overlay: any
+    playingReaction = false
+    currentState?: PublicGameState
 
     constructor() { super('arionion') }
     preload() {
-      this.load.image('tiles', '/assets/arionion-tiles.png')
-      this.load.tilemapTiledJSON('map', '/assets/arionion-map.json')
+      this.load.image('onion-field', VISUAL_ASSETS.field)
+      this.load.spritesheet('onion-mascots', VISUAL_ASSETS.mascots, { frameWidth: 512, frameHeight: 512 })
+      this.load.spritesheet('onion-buildings', VISUAL_ASSETS.buildings, { frameWidth: 512, frameHeight: 512 })
     }
     create() {
-      const map = this.make.tilemap({ key: 'map' })
-      const tiles = map.addTilesetImage('tileset-vila', 'tiles')
-      if (!tiles) throw new Error('Tileset do Cebolal não foi carregado')
-      map.createLayer('chao', tiles)
-      map.createLayer('decoracao', tiles)
-      const objects = map.getObjectLayer('pontos')?.objects ?? []
-      this.points = objects.filter((point: any) => String(point.name).startsWith('lote'))
-        .sort((a: any, b: any) => String(a.name).localeCompare(String(b.name), 'pt', { numeric: true }))
-        .map((point: any) => ({ x: Number(point.x ?? 0), y: Number(point.y ?? 0) }))
-      this.banner = this.add.text(144, 8, '⏳ Aguardando o Mestre', {
-        fontFamily: 'system-ui', fontSize: '8px', color: '#ffffff', backgroundColor: '#26351dcc', padding: { x: 5, y: 3 },
-      }).setOrigin(.5, 0).setDepth(20)
-      this.cameras.main.setZoom(2).centerOn(144, 72)
+      this.background = this.add.image(0, 0, 'onion-field').setOrigin(0).setDepth(0)
+      this.banner = this.add.text(0, 0, 'Aguardando o Mestre', {
+        fontFamily: 'Georgia, serif', fontSize: '17px', fontStyle: 'bold', color: '#443117',
+        backgroundColor: '#fff8dfee', padding: { x: 14, y: 8 }, stroke: '#ffffff', strokeThickness: 1,
+      }).setOrigin(.5, 0).setDepth(30)
+      this.scale.on('resize', (size: any) => this.layout(size.width, size.height))
+      this.layout(this.scale.width, this.scale.height)
       scene = this
     }
-    clearStructures() { for (const item of this.structures) item.destroy(); this.structures = [] }
-    point(index: number) { return this.points[index % Math.max(1, this.points.length)] ?? { x: 70 + index * 35, y: 65 } }
-    addStructure(index: number, emoji: string, label: string, active = true) {
-      const point = this.point(index)
-      const shadow = this.add.ellipse(point.x, point.y + 10, 27, 8, 0x31451f, .25)
-      const icon = this.add.text(point.x, point.y, emoji, { fontSize: '19px', resolution: 2 }).setOrigin(.5, .65)
-      const text = this.add.text(point.x, point.y + 13, label, { fontFamily: 'system-ui', fontSize: '5px', color: '#24321a', backgroundColor: '#fffde0cc', padding: { x: 2, y: 1 }, resolution: 2 }).setOrigin(.5)
-      if (!active) this.tweens.add({ targets: icon, alpha: { from: .45, to: 1 }, scale: { from: .8, to: 1 }, duration: 900, yoyo: true, repeat: -1 })
-      this.structures.push(shadow, icon, text)
+    layout(width: number, height: number) {
+      if (!this.background) return
+      this.background.setDisplaySize(width, height)
+      this.banner.setPosition(width / 2, 14)
+      if (this.currentState) this.syncState(this.currentState)
+    }
+    clearCollection(collection: any[]) {
+      for (const item of collection) {
+        this.tweens.killTweensOf(item)
+        item.destroy()
+      }
+      collection.length = 0
+    }
+    addBuilding(frame: number, x: number, y: number, scale: number, pending = false) {
+      const sprite = this.add.sprite(x, y, 'onion-buildings', frame).setOrigin(.5, 1).setScale(scale).setDepth(8 + y / 1000)
+      if (pending) {
+        sprite.setAlpha(.55)
+        if (!reducedMotion) this.tweens.add({ targets: sprite, alpha: { from: .4, to: .8 }, duration: 650, yoyo: true, repeat: -1 })
+      }
+      this.structures.push(sprite)
+    }
+    addWorker(index: number, busy: boolean) {
+      const width = this.scale.width
+      const height = this.scale.height
+      const x = width * .38 + index * Math.min(150, width * .13)
+      const sprite = this.add.sprite(x, height * .88, 'onion-mascots', busy ? 1 : 0).setOrigin(.5, 1).setScale(Math.max(.22, Math.min(.36, width / 3000))).setDepth(20 + index)
+      if (!busy) sprite.setAlpha(.92)
+      if (!reducedMotion) this.tweens.add({ targets: sprite, y: sprite.y - 7, duration: 950 + index * 140, ease: 'Sine.inOut', yoyo: true, repeat: -1 })
+      this.workers.push(sprite)
     }
     syncState(state?: PublicGameState) {
-      if (!state) return
-      this.clearStructures()
-      let index = 0
-      for (let n = 0; n < state.buildings.beds; n++) this.addStructure(index++, '🧅', `Canteiro ${n + 1}`)
-      if (state.buildings.curingSheds) this.addStructure(index++, '🏚️', 'Cura')
-      if (state.buildings.canneries) this.addStructure(index++, '🏭', 'Conserveira')
+      if (!state || !this.background) return
+      this.currentState = state
+      this.clearCollection(this.structures)
+      this.clearCollection(this.workers)
+      const width = this.scale.width
+      const height = this.scale.height
+      const buildingScale = Math.max(.24, Math.min(.42, width / 2500))
+      for (let index = 0; index < state.buildings.beds; index++) this.addBuilding(0, width * (.18 + index * .18), height * .91, buildingScale * .78)
+      if (state.buildings.curingSheds) this.addBuilding(1, width * .7, height * .76, buildingScale)
+      if (state.buildings.canneries) this.addBuilding(2, width * .86, height * .79, buildingScale)
       for (const construction of state.constructions) {
-        const label = construction.kind === 'bed' ? 'Canteiro' : construction.kind === 'curing-shed' ? 'Galpão' : 'Conserveira'
-        this.addStructure(index++, '🚧', label, false)
+        const frame = construction.kind === 'bed' ? 0 : construction.kind === 'curing-shed' ? 1 : 2
+        this.addBuilding(frame, width * .58, height * .8, buildingScale * .9, true)
       }
-      this.banner.setText(state.phase === 'open' ? `☀️ Cebolal aberto · nível ${state.upgradeLevel}` : state.phase === 'closed' ? '🌙 Temporada encerrada' : '⏳ Aguardando o Mestre')
+      for (let index = 0; index < state.workers.limit; index++) this.addWorker(index, index < state.workers.busy)
+      this.banner.setText(state.phase === 'open' ? `Cebolal aberto · nível ${state.upgradeLevel}` : state.phase === 'closed' ? 'Temporada encerrada' : 'Aguardando o Mestre')
     }
-    float(text: string, color = '#23451c') {
-      const label = this.add.text(144, 105, text, { fontFamily: 'system-ui', fontSize: '9px', fontStyle: 'bold', color, stroke: '#ffffff', strokeThickness: 3, resolution: 2 }).setOrigin(.5).setDepth(30)
-      this.tweens.add({ targets: label, y: 82, alpha: 0, duration: 1500, onComplete: () => label.destroy() })
+    enqueue(reaction: VisualReaction) {
+      reactions.enqueue(reaction)
+      this.playNextReaction()
+    }
+    playNextReaction() {
+      if (this.playingReaction) return
+      const reaction = reactions.dequeue()
+      if (!reaction) return
+      this.playingReaction = true
+      const frame = reaction.type === 'sprout' ? 3 : reaction.type === 'reject' ? 2 : reaction.type === 'produce' || reaction.type === 'build' ? 1 : 4
+      const message = reaction.type === 'celebrate' ? reaction.message
+        : reaction.type === 'build' ? (reaction.phase === 'started' ? 'Nova obra iniciada!' : 'Construção concluída!')
+          : reaction.type === 'produce' ? `+${reaction.quantity} ${reaction.resource === 'preserve' ? 'conservas' : reaction.resource === 'cured-onion' ? 'cebolas curadas' : 'cebolas'}`
+            : reaction.type === 'sprout' ? `${reaction.quantity} cebolas brotaram!`
+              : reaction.type === 'upgrade' ? 'Cebolal melhorado!'
+                : reaction.type === 'reject' ? reaction.reason : 'Hora de descansar'
+      const actor = this.add.sprite(this.scale.width / 2, this.scale.height * .8, 'onion-mascots', frame).setOrigin(.5, 1).setScale(Math.max(.3, Math.min(.44, this.scale.width / 2400))).setDepth(35)
+      const label = this.add.text(this.scale.width / 2, this.scale.height * .25, message, {
+        fontFamily: 'Georgia, serif', fontSize: '20px', fontStyle: 'bold', color: reaction.type === 'reject' || reaction.type === 'sprout' ? '#8c352b' : '#3e571f',
+        backgroundColor: '#fffdf2f2', padding: { x: 14, y: 9 }, stroke: '#ffffff', strokeThickness: 2,
+      }).setOrigin(.5).setDepth(36)
+      this.transients.push(actor, label)
+      if (reaction.type === 'reject' && !reducedMotion) this.cameras.main.shake(150, .004)
+      const finish = () => {
+        actor.destroy(); label.destroy()
+        this.transients = this.transients.filter(item => item !== actor && item !== label)
+        this.playingReaction = false
+        this.playNextReaction()
+      }
+      if (reducedMotion) this.time.delayedCall(240, finish)
+      else this.tweens.add({ targets: [actor, label], y: '-=22', alpha: { from: 1, to: 0 }, duration: 1250, hold: 400, ease: 'Sine.out', onComplete: finish })
     }
     closeOverlay() {
       this.overlay?.destroy()
-      this.overlay = this.add.rectangle(144, 72, 288, 144, 0x17213a, .42).setDepth(15)
-      this.banner.setDepth(20)
+      this.overlay = this.add.rectangle(this.scale.width / 2, this.scale.height / 2, this.scale.width, this.scale.height, 0x26351d, .4).setDepth(25)
+      this.banner.setDepth(30)
+    }
+    dispose() {
+      reactions.clear()
+      this.clearCollection(this.structures)
+      this.clearCollection(this.workers)
+      this.clearCollection(this.transients)
+      this.scale.off('resize')
     }
   }
 
   await new Promise<void>((resolve) => {
-    game = new Phaser.Game({ type: Phaser.AUTO, parent: container, width: 576, height: 288, pixelArt: true,
-      backgroundColor: '#99bd68', scene: OnionScene, audio: { noAudio: true }, callbacks: { postBoot: () => resolve() } })
+    game = new Phaser.Game({
+      type: Phaser.AUTO, parent: container, width: Math.max(320, container.clientWidth), height: Math.max(320, container.clientHeight),
+      transparent: true, scene: OnionScene, audio: { noAudio: true },
+      scale: { mode: Phaser.Scale.RESIZE, autoCenter: Phaser.Scale.CENTER_BOTH },
+      callbacks: { postBoot: () => resolve() },
+    })
   })
   while (!scene) await new Promise(resolve => setTimeout(resolve, 0))
 
-  const sync = (payload: VillagePayload) => scene.syncState(payload.state)
+  observer = new ResizeObserver(([entry]) => {
+    if (!entry || destroyed) return
+    const width = Math.max(320, Math.round(entry.contentRect.width))
+    const height = Math.max(320, Math.round(entry.contentRect.height))
+    game?.scale.resize(width, height)
+  })
+  observer.observe(container)
+
+  const react = (event: string, payload: VillagePayload) => {
+    scene.syncState(payload.state)
+    scene.enqueue(reactionForEvent(event, payload))
+  }
   return {
-    sync,
-    seasonStarted(payload) { sync(payload); scene.float('☀️ Temporada aberta!') },
-    constructionStarted(payload) { sync(payload); scene.float('🚧 Nova obra iniciada') },
-    constructionCompleted(payload) { sync(payload); scene.float('✅ Construção concluída') },
-    resourceProduced(payload) { sync(payload); scene.float(`+${payload.quantity ?? ''} ${payload.resource === 'preserve' ? '🫙' : '🧅'}`) },
-    onionSprouted(payload) { sync(payload); scene.float(`🌱 ${payload.quantity ?? ''} cebolas brotaram`, '#8a3f31') },
-    upgradeCompleted(payload) { sync(payload); scene.float('⚙️ Cebolal melhorado!') },
-    rejected(payload) { scene.cameras.main.shake(180, .006); scene.float(`✋ ${payload.reason ?? 'Operação recusada'}`, '#9a3028') },
-    seasonClosed(payload) { sync(payload); scene.closeOverlay() },
-    destroy() { game?.destroy(true); scene = null; game = null },
+    sync(payload) { scene.syncState(payload.state) },
+    seasonStarted(payload) { react(EVENTS.seasonStarted, payload) },
+    constructionStarted(payload) { react(EVENTS.constructionStarted, payload) },
+    constructionCompleted(payload) { react(EVENTS.constructionCompleted, payload) },
+    resourceProduced(payload) { react(EVENTS.resourceProduced, payload) },
+    onionSprouted(payload) { react(EVENTS.onionSprouted, payload) },
+    upgradeCompleted(payload) { react(EVENTS.upgradeCompleted, payload) },
+    rejected(payload) { react(EVENTS.operationRejected, payload) },
+    seasonClosed(payload) { react(EVENTS.seasonClosed, payload); scene.closeOverlay() },
+    destroy() {
+      if (destroyed) return
+      destroyed = true
+      observer?.disconnect()
+      observer = null
+      scene?.dispose()
+      game?.destroy(true)
+      scene = null
+      game = null
+    },
   }
 }

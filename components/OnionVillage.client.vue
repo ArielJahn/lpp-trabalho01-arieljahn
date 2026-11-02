@@ -20,7 +20,8 @@ watch(() => props.state, state => adapter.handle(EVENTS.stateSynchronized, { sta
 
 onMounted(async () => {
   if (!container.value) return
-  const driver = await createOnionVillage(container.value)
+  const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
+  const driver = await createOnionVillage(container.value, { reducedMotion })
   adapter.ready(driver)
   adapter.handle(EVENTS.stateSynchronized, { state: props.state })
 })
@@ -36,9 +37,9 @@ onBeforeUnmount(() => adapter.destroy())
 </template>
 
 <style scoped>
-.village-frame { position: relative; min-height: 18rem; overflow: hidden; border: .5rem solid #fff; border-radius: 1.5rem; background: #9abd68; box-shadow: 0 1.5rem 3rem #52632920; }
-.village-canvas { width: 100%; height: 100%; min-height: 18rem; display: grid; place-items: center; }
-.village-canvas :deep(canvas) { width: 100% !important; height: 100% !important; object-fit: cover; image-rendering: pixelated; }
-.village-frame__badge { position: absolute; right: 1rem; bottom: 1rem; z-index: 2; padding: .4rem .65rem; border-radius: 99px; background: #26351dcc; color: white; font-size: .72rem; pointer-events: none; }
-@media (max-width: 800px) { .village-frame, .village-canvas { min-height: 14rem; } }
+.village-frame { position: relative; height: 100%; min-height: 25rem; overflow: hidden; border: .4rem solid #fff8df; border-radius: 1.5rem; background: #8ed6ef; box-shadow: 0 .8rem 0 #4e6f3530, 0 1.5rem 3rem #52632920; }
+.village-canvas { width: 100%; height: 100%; min-height: 25rem; display: grid; place-items: center; }
+.village-canvas :deep(canvas) { width: 100% !important; height: 100% !important; object-fit: cover; }
+.village-frame__badge { position: absolute; right: .8rem; bottom: .8rem; z-index: 2; padding: .35rem .6rem; border: 2px solid #fff3b5; border-radius: 99px; background: #3f5729dd; color: white; font-size: .65rem; font-weight: 800; pointer-events: none; }
+@media (max-width: 800px) { .village-frame, .village-canvas { min-height: 20rem; } }
 </style>

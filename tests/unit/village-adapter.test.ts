@@ -49,6 +49,7 @@ describe('OnionVillageAdapter', () => {
     const adapter = createOnionVillageAdapter()
     adapter.ready(fake.instance)
     adapter.destroy()
+    adapter.destroy()
     adapter.handle(EVENTS.seasonStarted, { state: createInitialState() })
     expect(fake.calls).toEqual(['destroy'])
   })
