@@ -38,6 +38,7 @@ const reactions: Record<string, string> = {
   [EVENTS.stageUnlocked]: 'revela a próxima etapa da cadeia',
   [EVENTS.upgradeCompleted]: 'aumenta o rendimento do Cebolal',
   [EVENTS.seasonClosed]: 'encerra a temporada e bloqueia novas ações',
+  [EVENTS.seasonRestarted]: 'prepara uma nova temporada para todos',
 }
 
 function initialPublicState(): PublicGameState {
@@ -93,7 +94,7 @@ export function createAriOnionClient(factory?: SocketFactory) {
       socket.on('disconnect', () => { connected.value = false })
       for (const name of [EVENTS.stateSynchronized, EVENTS.seasonStarted, EVENTS.constructionStarted,
         EVENTS.constructionCompleted, EVENTS.resourceProduced, EVENTS.onionSprouted, EVENTS.stageUnlocked,
-        EVENTS.upgradeCompleted, EVENTS.seasonClosed]) {
+        EVENTS.upgradeCompleted, EVENTS.seasonClosed, EVENTS.seasonRestarted]) {
         socket.on(name, payload => project(name, payload as Record<string, unknown> | undefined))
       }
       socket.on(EVENTS.operationRejected, payload => {
@@ -110,6 +111,7 @@ export function createAriOnionClient(factory?: SocketFactory) {
     requestConstruction: () => request(EVENTS.constructionRequested),
     requestUpgrade: () => request(EVENTS.upgradeRequested),
     requestClose: () => request(EVENTS.closingRequested),
+    restartSeason: () => request(EVENTS.restartRequested),
   }
 }
 

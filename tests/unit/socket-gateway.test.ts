@@ -43,6 +43,21 @@ describe('Socket.IO gateway', () => {
     expect(io.broadcasts.at(-1)?.[0]).toBe(EVENTS.seasonStarted)
   })
 
+  it('forwards a restart request and broadcasts the authoritative restarted season', () => {
+    const io = new FakeIO()
+    const runtime = createGameRuntime({ now: () => 0 })
+    attachGameSocket(io, runtime)
+    const socket = new FakeSocket('m', { auth: { nome: 'Mestre', papel: 'mestre' } })
+    io.connection!(socket)
+    socket.trigger(EVENTS.openingRequested)
+    socket.trigger(EVENTS.closingRequested)
+
+    socket.trigger(EVENTS.restartRequested)
+
+    expect(io.broadcasts.at(-1)?.[0]).toBe(EVENTS.seasonRestarted)
+    expect(runtime.snapshot().phase).toBe('waiting')
+  })
+
   it('privately rejects and disconnects an invalid role', () => {
     const io = new FakeIO()
     attachGameSocket(io, createGameRuntime())

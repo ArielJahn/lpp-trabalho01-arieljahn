@@ -37,6 +37,27 @@ describe('AriOnion client projection', () => {
     expect(client.events.value.at(-1)?.reaction).toContain('temporada')
   })
 
+  it('requests a restart and projects the authoritative restarted season', () => {
+    const socket = new FakeClientSocket()
+    const client = createAriOnionClient(() => socket)
+    client.connect('Mestre', 'master')
+
+    client.restartSeason()
+    expect(socket.sent.at(-1)?.[0]).toBe(EVENTS.restartRequested)
+    expect(client.events.value.at(-1)).toMatchObject({
+      direction: 'emit', name: EVENTS.restartRequested, kind: 'request',
+    })
+
+    const state = { ...createInitialState(), nextBuilding: 'bed' as const, upgradeCost: 20 }
+    socket.trigger(EVENTS.seasonRestarted, { state, cause: EVENTS.restartRequested })
+
+    expect(client.state.value.phase).toBe('waiting')
+    expect(client.events.value.at(-1)).toMatchObject({
+      direction: 'on', name: EVENTS.seasonRestarted, cause: EVENTS.restartRequested, kind: 'fact',
+    })
+    expect(client.events.value.at(-1)?.reaction).toContain('nova temporada')
+  })
+
   it('records private rejections without replacing the state', () => {
     const socket = new FakeClientSocket()
     const client = createAriOnionClient(() => socket)

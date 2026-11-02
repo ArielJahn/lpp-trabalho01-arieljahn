@@ -45,6 +45,7 @@ export function attachGameSocket(io: SocketServerLike, runtime: GameRuntime): vo
       EVENTS.constructionRequested,
       EVENTS.upgradeRequested,
       EVENTS.closingRequested,
+      EVENTS.restartRequested,
     ]) {
       socket.on(event, (payload?: unknown) => emitRuntime(io, runtime.dispatch(socket.id, event, payload)))
     }
