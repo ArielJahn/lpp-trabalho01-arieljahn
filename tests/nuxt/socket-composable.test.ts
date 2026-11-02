@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { EVENTS, createInitialState } from '../../shared/arionion/contracts'
 import { createAriOnionClient } from '../../composables/useAriOnionSocket'
 
@@ -12,6 +12,7 @@ class FakeClientSocket {
 }
 
 describe('AriOnion client projection', () => {
+  afterEach(() => vi.useRealTimers())
   it('records requests without changing resources before a server fact', () => {
     const socket = new FakeClientSocket()
     const client = createAriOnionClient(() => socket)
@@ -66,5 +67,18 @@ describe('AriOnion client projection', () => {
     expect(client.state.value.phase).toBe('waiting')
     expect(client.events.value.at(-1)).toMatchObject({ kind: 'rejection', data: 'Sem colhedor livre' })
     expect(client.notices.value.at(-1)?.type).toBe('error')
+  })
+
+  it('automatically removes rejection alerts after four seconds', () => {
+    vi.useFakeTimers()
+    const socket = new FakeClientSocket()
+    const client = createAriOnionClient(() => socket)
+    client.connect('Ari', 'player')
+    socket.trigger(EVENTS.operationRejected, { reason: 'Cebolas insuficientes' })
+
+    vi.advanceTimersByTime(3_999)
+    expect(client.notices.value).toHaveLength(1)
+    vi.advanceTimersByTime(1)
+    expect(client.notices.value).toHaveLength(0)
   })
 })

@@ -20,6 +20,7 @@ export interface ClientEventRecord {
   payload?: Record<string, unknown>
 }
 export interface ClientNotice { text: string; type: 'info' | 'success' | 'error' }
+export const NOTICE_DURATION_MS = 4_000
 
 interface ClientSocket {
   on(event: string, handler: (payload?: any) => void): ClientSocket
@@ -60,14 +61,22 @@ export function createAriOnionClient(factory?: SocketFactory) {
   const hideProduction = ref(false)
   let socket: ClientSocket | null = null
   let eventId = 0
+  const noticeTimers = new Set<ReturnType<typeof setTimeout>>()
 
   const register = (record: Omit<ClientEventRecord, 'id' | 'time'>) => {
     events.value.push({ ...record, id: ++eventId, time: new Date().toLocaleTimeString('pt-BR') })
     if (events.value.length > 100) events.value.splice(0, events.value.length - 100)
   }
   const notice = (text: string, type: ClientNotice['type']) => {
-    notices.value.push({ text, type })
+    const entry = { text, type }
+    notices.value.push(entry)
     if (notices.value.length > 6) notices.value.shift()
+    const timer = setTimeout(() => {
+      noticeTimers.delete(timer)
+      const index = notices.value.indexOf(entry)
+      if (index >= 0) notices.value.splice(index, 1)
+    }, NOTICE_DURATION_MS)
+    noticeTimers.add(timer)
   }
   const project = (name: string, payload?: Record<string, unknown>) => {
     const safe = payload ?? {}
@@ -106,7 +115,11 @@ export function createAriOnionClient(factory?: SocketFactory) {
         notice(reason, 'error')
       })
     },
-    disconnect() { socket?.disconnect(); socket = null; connected.value = false },
+    disconnect() {
+      socket?.disconnect(); socket = null; connected.value = false
+      for (const timer of noticeTimers) clearTimeout(timer)
+      noticeTimers.clear(); notices.value.splice(0)
+    },
     requestOpen: () => request(EVENTS.openingRequested),
     requestConstruction: () => request(EVENTS.constructionRequested),
     requestUpgrade: () => request(EVENTS.upgradeRequested),
