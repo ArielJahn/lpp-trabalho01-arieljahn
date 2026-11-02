@@ -17,6 +17,7 @@ import {
   produceOnions,
   requestNextConstruction,
   requestUpgrade,
+  restartSeason,
   type ScheduledEffect,
   type Transition,
 } from './domain'
@@ -99,6 +100,12 @@ export function createGameRuntime(options: { now?: () => number; scheduler?: Sch
         const emissions = apply(socketId, event, closeSeason(state, actor))
         if (state.phase === 'closed') options.scheduler?.cancelSeason?.(seasonId)
         return emissions
+      }
+      if (event === EVENTS.restartRequested) {
+        const seasonId = state.seasonId
+        const transition = restartSeason(state, actor)
+        if (!transition.rejection) options.scheduler?.cancelSeason?.(seasonId)
+        return apply(socketId, event, transition)
       }
       return reject(socketId, event, 'Evento desconhecido')
     },

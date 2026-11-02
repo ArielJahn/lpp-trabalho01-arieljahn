@@ -7,6 +7,7 @@ import {
   openSeason,
   requestNextConstruction,
   requestUpgrade,
+  restartSeason,
 } from '../../server/arionion/domain'
 
 const master = { socketId: 'm', name: 'Mestre', role: 'master' as const }
@@ -83,6 +84,19 @@ describe('domain progression', () => {
     expect(second.state.workers.busy).toBe(2)
   })
 
+  it('gives simultaneous works unique ids so both timers can complete', () => {
+    const state = openSeason(createInitialState(), master, 0).state
+    const first = requestNextConstruction(state, player, 1_000)
+    const second = requestNextConstruction(first.state, player, 1_000)
+    const [firstWork, secondWork] = second.state.constructions
+    expect(firstWork?.id).not.toBe(secondWork?.id)
+    const afterFirst = completeConstruction(second.state, firstWork!.id).state
+    const afterSecond = completeConstruction(afterFirst, secondWork!.id).state
+    expect(afterSecond.buildings.beds).toBe(2)
+    expect(afterSecond.workers.busy).toBe(0)
+    expect(afterSecond.constructions).toEqual([])
+  })
+
   it('allows only players to buy upgrades after the chain is complete', () => {
     const state = openSeason(createInitialState(), master, 0).state
     state.buildings = { beds: 2, curingSheds: 1, canneries: 1 }
@@ -111,5 +125,16 @@ describe('domain progression', () => {
     const closed = closeSeason(state, master).state
     expect(closed.phase).toBe('closed')
     expect(requestNextConstruction(closed, player, 1).rejection).toBeDefined()
+  })
+
+  it('lets only the master reset a closed season to the initial waiting state', () => {
+    const open = openSeason(createInitialState(), master, 0).state
+    open.rawOnions = 7
+    const closed = closeSeason(open, master).state
+    expect(restartSeason(closed, player).rejection?.reason).toContain('Mestre')
+    expect(restartSeason(open, master).rejection?.reason).toContain('encerrada')
+    const restarted = restartSeason(closed, master)
+    expect(restarted.state).toEqual(createInitialState())
+    expect(restarted.facts[0]).toMatchObject({ event: 'cebolal.reiniciado', cause: 'cebolal.reinicio_solicitado' })
   })
 })

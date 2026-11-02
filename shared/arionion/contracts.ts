@@ -72,6 +72,8 @@ export const EVENTS = {
   operationRejected: 'operacao.recusada',
   closingRequested: 'cebolal.encerramento_solicitado',
   seasonClosed: 'cebolal.encerrado',
+  restartRequested: 'cebolal.reinicio_solicitado',
+  seasonRestarted: 'cebolal.reiniciado',
 } as const
 
 export type EventName = (typeof EVENTS)[keyof typeof EVENTS]

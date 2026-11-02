@@ -54,4 +54,20 @@ describe('authoritative runtime', () => {
     expect(runtime.processEffect(production)[0]?.event).toBe(EVENTS.resourceProduced)
     expect(runtime.snapshot().rawOnions).toBe(80)
   })
+
+  it('restarts for the master, preserves connections and invalidates old effects', () => {
+    const cancelled: number[] = []
+    const runtime = createGameRuntime({ now: () => 1_000, scheduler: { schedule: () => {}, cancelSeason: id => cancelled.push(id) } })
+    runtime.connect({ socketId: 'm', name: 'Mestre', role: 'master' })
+    runtime.connect({ socketId: 'p', name: 'Ari', role: 'player' })
+    runtime.dispatch('m', EVENTS.openingRequested)
+    runtime.dispatch('m', EVENTS.closingRequested)
+
+    const [restarted] = runtime.dispatch('m', EVENTS.restartRequested)
+    expect(restarted).toMatchObject({ scope: 'all', event: EVENTS.seasonRestarted, payload: { state: { phase: 'waiting', rawOnions: 100 } } })
+    expect(cancelled).toEqual([1, 1])
+    expect(runtime.dispatch('p', EVENTS.openingRequested)[0]).toMatchObject({ socketId: 'p', event: EVENTS.operationRejected })
+    expect(runtime.processEffect({ type: 'beds.produce', dueAt: 6_000, seasonId: 1 })).toEqual([])
+    expect(runtime.dispatch('m', EVENTS.openingRequested)[0]?.event).toBe(EVENTS.seasonStarted)
+  })
 })

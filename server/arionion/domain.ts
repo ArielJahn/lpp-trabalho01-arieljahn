@@ -1,4 +1,4 @@
-import type { BuildingKind, GameState, PlayerIdentity } from '../../shared/arionion/contracts'
+import { createInitialState, type BuildingKind, type GameState, type PlayerIdentity } from '../../shared/arionion/contracts'
 import { RULES, upgradeCost, yieldMultiplier } from '../../shared/arionion/rules'
 
 export interface DomainRejection { reason: string }
@@ -23,6 +23,14 @@ export function closeSeason(state: GameState, actor: PlayerIdentity): Transition
   if (state.phase !== 'open') return reject(state, 'A temporada não está aberta')
   const next = structuredClone(state); next.phase = 'closed'
   return result(next, { facts: [{ event: 'cebolal.encerrado', cause: 'cebolal.encerramento_solicitado' }] })
+}
+
+export function restartSeason(state: GameState, actor: PlayerIdentity): Transition {
+  if (actor.role !== 'master') return reject(state, 'Somente o Mestre pode iniciar uma nova temporada')
+  if (state.phase !== 'closed') return reject(state, 'A temporada precisa estar encerrada')
+  return result(createInitialState(), {
+    facts: [{ event: 'cebolal.reiniciado', cause: 'cebolal.reinicio_solicitado' }],
+  })
 }
 
 export function nextBuilding(state: GameState): BuildingKind | null {
@@ -54,7 +62,7 @@ export function requestNextConstruction(state: GameState, actor: PlayerIdentity,
   } else if (state.rawOnions < cost) return reject(state, 'Cebolas insuficientes')
   let next = structuredClone(state)
   if (kind === 'cannery') next.curedOnions -= cost; else next = consumeRawOnions(next, cost).state
-  const id = `obra-${state.seasonId}-${now}`
+  const id = `obra-${state.seasonId}-${now}-${state.constructions.length + 1}`
   const construction = { id, kind, requestedBy: actor.name, completesAt: now + RULES.constructionDurationMs }
   next.workers.busy += 1; next.constructions.push(construction)
   return result(next, { facts: [{ event: 'construcao.iniciada', cause: 'construcao.solicitada', data: { kind, by: actor.name } }], effects: [{ type: 'construction.complete', dueAt: construction.completesAt, seasonId: next.seasonId, data: { id } }] })
