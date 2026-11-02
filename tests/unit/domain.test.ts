@@ -30,6 +30,19 @@ describe('domain progression', () => {
     expect(completed.state.workers.busy).toBe(0)
   })
 
+  it('publishes the stage unlocked by a completed construction', () => {
+    const state = openSeason(createInitialState(), master, 0).state
+    state.buildings.beds = 1
+    state.constructions = [{ id: 'second-bed', kind: 'bed', requestedBy: player.name, completesAt: 8_000 }]
+    state.workers.busy = 1
+
+    const completed = completeConstruction(state, 'second-bed')
+
+    expect(completed.facts).toContainEqual({
+      event: 'etapa.desbloqueada', cause: 'construcao.concluida', data: { building: 'curing-shed' },
+    })
+  })
+
   it('consumes raw onions by earliest expiry', () => {
     const state = createInitialState()
     state.rawOnionLots = [

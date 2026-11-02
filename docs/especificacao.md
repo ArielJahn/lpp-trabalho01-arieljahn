@@ -44,6 +44,8 @@
 | `operacao.recusada` | Cebolal | Somente quem pediu | O estado não muda e o motivo da recusa é informado. |
 | `cebolal.encerramento_solicitado` | Mestre | Cebolal | É um pedido; nada muda até ser aceito. |
 | `cebolal.encerrado` | Cebolal | Todos | A fase muda para encerrada e novas ações são bloqueadas. |
+| `cebolal.reinicio_solicitado` | Mestre | Cebolal | É um pedido; nada muda até ser aceito. |
+| `cebolal.reiniciado` | Cebolal | Todos | O progresso da temporada é zerado e a fase retorna à espera. |
 
 ## 3. Cenários de teste
 

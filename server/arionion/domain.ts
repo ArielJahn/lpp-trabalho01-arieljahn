@@ -78,7 +78,11 @@ export function completeConstruction(state: GameState, constructionId: string): 
   if (kind === 'curing-shed') next.buildings.curingSheds += 1
   if (kind === 'cannery') next.buildings.canneries += 1
   next.constructions = next.constructions.filter(item => item.id !== constructionId); next.workers.busy -= 1
-  return result(next, { facts: [{ event: 'construcao.concluida', cause: 'construcao.iniciada (temporizador)', data: { kind } }] })
+  const facts: DomainFact[] = [{ event: 'construcao.concluida', cause: 'construcao.iniciada (temporizador)', data: { kind } }]
+  const unlocked = kind === 'bed' && next.buildings.beds === 2 ? 'curing-shed'
+    : kind === 'curing-shed' && next.buildings.curingSheds === 1 ? 'cannery' : null
+  if (unlocked) facts.push({ event: 'etapa.desbloqueada', cause: 'construcao.concluida', data: { building: unlocked } })
+  return result(next, { facts })
 }
 
 export function requestUpgrade(state: GameState, actor: PlayerIdentity): Transition {

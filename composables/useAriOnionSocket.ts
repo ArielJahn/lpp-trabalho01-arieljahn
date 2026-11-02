@@ -101,6 +101,7 @@ export function createAriOnionClient(factory?: SocketFactory) {
       socket = createSocket({ auth: { nome: name.trim() || 'Anônimo', papel: role === 'master' ? 'mestre' : 'jogador' } })
       socket.on('connect', () => { connected.value = true })
       socket.on('disconnect', () => { connected.value = false })
+      // Escutas de fatos: o cliente projeta exclusivamente o estado recebido do servidor e registra a reação.
       for (const name of [EVENTS.stateSynchronized, EVENTS.seasonStarted, EVENTS.constructionStarted,
         EVENTS.constructionCompleted, EVENTS.resourceProduced, EVENTS.onionSprouted, EVENTS.stageUnlocked,
         EVENTS.upgradeCompleted, EVENTS.seasonClosed, EVENTS.seasonRestarted]) {
@@ -120,6 +121,7 @@ export function createAriOnionClient(factory?: SocketFactory) {
       for (const timer of noticeTimers) clearTimeout(timer)
       noticeTimers.clear(); notices.value.splice(0)
     },
+    // Pedidos registram o emit no painel, mas nunca alteram o estado local antes do fato do servidor.
     requestOpen: () => request(EVENTS.openingRequested),
     requestConstruction: () => request(EVENTS.constructionRequested),
     requestUpgrade: () => request(EVENTS.upgradeRequested),

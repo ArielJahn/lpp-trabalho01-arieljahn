@@ -16,6 +16,7 @@ export interface SocketServerLike {
 }
 
 export function emitRuntime(io: SocketServerLike, emissions: RuntimeEmission[]): void {
+  // Fatos aceitos são emitidos para todos; recusas são direcionadas somente ao solicitante.
   for (const emission of emissions) {
     if (emission.scope === 'all') io.emit(emission.event, emission.payload)
     else if (emission.socketId) io.to(emission.socketId).emit(emission.event, emission.payload)
@@ -40,6 +41,7 @@ export function attachGameSocket(io: SocketServerLike, runtime: GameRuntime): vo
     const rawName = typeof auth.nome === 'string' ? auth.nome.trim() : ''
     emitRuntime(io, runtime.connect({ socketId: socket.id, name: rawName || 'Anônimo', role }))
 
+    // Cada pedido Socket.IO apenas encaminha a intenção; o runtime autoritativo decide e produz os fatos.
     for (const event of [
       EVENTS.openingRequested,
       EVENTS.constructionRequested,
