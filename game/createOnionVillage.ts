@@ -1,6 +1,6 @@
 import { EVENTS, type PublicGameState } from '~/shared/arionion/contracts'
 import { VISUAL_ASSETS } from './visualAssets'
-import { createReactionQueue, reactionForEvent, type VisualReaction } from './villageReactions'
+import { createReactionQueue, reactionForEvent, reactionMessage, type VisualReaction } from './villageReactions'
 import { shouldRunVillageEffects, shouldShowSeasonOverlay } from './villagePresentation'
 import { calculateVillageViewport } from './villageViewport'
 
@@ -89,6 +89,7 @@ export async function createOnionVillage(container: HTMLElement, options: { redu
     banner: any
     overlay: any
     playingReaction = false
+    reactionScheduled = false
     currentState?: PublicGameState
 
     constructor() { super('arionion') }
@@ -169,20 +170,20 @@ export async function createOnionVillage(container: HTMLElement, options: { redu
     enqueue(reaction: VisualReaction) {
       if (!this.currentState || !shouldRunVillageEffects(this.currentState.phase)) return
       reactions.enqueue(reaction)
-      this.playNextReaction()
+      if (this.reactionScheduled) return
+      this.reactionScheduled = true
+      queueMicrotask(() => {
+        this.reactionScheduled = false
+        if (!destroyed) this.playNextReaction()
+      })
     }
     playNextReaction() {
       if (this.playingReaction) return
       const reaction = reactions.dequeue()
       if (!reaction) return
       this.playingReaction = true
-      const frame = reaction.type === 'sprout' ? 3 : reaction.type === 'reject' ? 2 : reaction.type === 'produce' || reaction.type === 'build' ? 1 : 4
-      const message = reaction.type === 'celebrate' ? reaction.message
-        : reaction.type === 'build' ? (reaction.phase === 'started' ? 'Nova obra iniciada!' : 'Construção concluída!')
-          : reaction.type === 'produce' ? `+${reaction.quantity} ${reaction.resource === 'preserve' ? 'conservas' : reaction.resource === 'cured-onion' ? 'cebolas curadas' : 'cebolas'}`
-            : reaction.type === 'sprout' ? `${reaction.quantity} cebolas brotaram!`
-              : reaction.type === 'upgrade' ? 'Cebolal melhorado!'
-                : reaction.type === 'reject' ? reaction.reason : 'Hora de descansar'
+      const frame = reaction.type === 'sprout' || reaction.type === 'turnover' ? 3 : reaction.type === 'reject' ? 2 : reaction.type === 'produce' || reaction.type === 'build' ? 1 : 4
+      const message = reactionMessage(reaction)
       const actor = this.add.sprite(this.scale.width / 2, this.scale.height * .8, 'onion-mascots', frame).setOrigin(.5, 1).setScale(Math.max(.3, Math.min(.44, this.scale.width / 2400))).setDepth(35)
       const label = this.add.text(this.scale.width / 2, this.scale.height * .25, message, {
         fontFamily: 'Georgia, serif', fontSize: '20px', fontStyle: 'bold', color: reaction.type === 'reject' || reaction.type === 'sprout' ? '#8c352b' : '#3e571f',

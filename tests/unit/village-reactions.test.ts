@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { EVENTS } from '../../shared/arionion/contracts'
-import { createReactionQueue, reactionForEvent } from '../../game/villageReactions'
+import { EVENTS, createInitialState } from '../../shared/arionion/contracts'
+import { createReactionQueue, reactionForEvent, reactionMessage } from '../../game/villageReactions'
 
 describe('village reactions', () => {
   it.each([
@@ -17,12 +17,30 @@ describe('village reactions', () => {
     expect(reactionForEvent(event, payload)).toEqual(expected)
   })
 
+  it('shows the authoritative resulting stock in production and sprouting messages', () => {
+    const state = { ...createInitialState(), rawOnions: 80 }
+    const produced = reactionForEvent(EVENTS.resourceProduced, { resource: 'raw-onion', quantity: 20, state })
+    const sprouted = reactionForEvent(EVENTS.onionSprouted, { quantity: 20, state: { ...state, rawOnions: 60 } })
+
+    expect(reactionMessage(produced)).toBe('+20 cebolas · estoque: 80')
+    expect(reactionMessage(sprouted)).toBe('20 cebolas brotaram · estoque: 60')
+  })
+
   it('coalesces consecutive production of the same resource', () => {
     const queue = createReactionQueue()
     queue.enqueue({ type: 'produce', resource: 'onion', quantity: 4 })
     queue.enqueue({ type: 'produce', resource: 'onion', quantity: 6 })
     expect(queue.size()).toBe(1)
     expect(queue.dequeue()).toEqual({ type: 'produce', resource: 'onion', quantity: 10 })
+  })
+
+  it('combines simultaneous sprouting and raw production into one current-stock reaction', () => {
+    const queue = createReactionQueue()
+    queue.enqueue({ type: 'sprout', quantity: 20, stock: 60 })
+    queue.enqueue({ type: 'produce', resource: 'raw-onion', quantity: 20, stock: 80 })
+
+    expect(queue.size()).toBe(1)
+    expect(reactionMessage(queue.dequeue()!)).toBe('20 brotaram · +20 novas · estoque: 80')
   })
 
   it('keeps at most six useful reactions and clears pending work', () => {
