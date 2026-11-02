@@ -58,6 +58,25 @@ describe('AriOnion dashboard', () => {
     expect(player.emitted('construct')).toHaveLength(1)
   })
 
+  it('offers a new season only to the master after closing and forwards the action', async () => {
+    const closed = state({ phase: 'closed' })
+    const master = mount(ActionPanel, { props: { role: 'master', state: closed } })
+    const restart = master.get('[data-restart-season]')
+    expect(restart.text()).toContain('Nova temporada')
+    await restart.trigger('click')
+    expect(master.emitted('restart')).toHaveLength(1)
+
+    const player = mount(ActionPanel, { props: { role: 'player', state: closed } })
+    expect(player.find('[data-restart-season]').exists()).toBe(false)
+
+    const dashboard = mount(GameDashboard, {
+      global: { stubs: { OnionVillage: true } },
+      props: { ...dashboardProps(), role: 'master', state: closed },
+    })
+    await dashboard.get('[data-restart-season]').trigger('click')
+    expect(dashboard.emitted('restart')).toHaveLength(1)
+  })
+
   it('limits the activity preview to the three newest events', () => {
     const wrapper = mount(EventSummary, { props: { events } })
     expect(wrapper.findAll('[data-event-summary-item]')).toHaveLength(3)
@@ -82,16 +101,12 @@ describe('AriOnion dashboard', () => {
     wrapper.unmount()
   })
 
-  it('shows fullscreen only when supported and exposes reduced-motion state', async () => {
-    const unsupported = mount(GameDashboard, { global: { stubs: { OnionVillage: true } }, props: dashboardProps() })
-    expect(unsupported.find('[data-fullscreen-toggle]').exists()).toBe(false)
-    unsupported.unmount()
-
+  it('does not add a fullscreen control and exposes reduced-motion state', async () => {
     Object.defineProperty(HTMLElement.prototype, 'requestFullscreen', { configurable: true, value: vi.fn() })
     vi.spyOn(window, 'matchMedia').mockReturnValue({ matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() } as unknown as MediaQueryList)
     const supported = mount(GameDashboard, { global: { stubs: { OnionVillage: true } }, props: dashboardProps() })
     await supported.vm.$nextTick()
-    expect(supported.find('[data-fullscreen-toggle]').exists()).toBe(true)
+    expect(supported.find('[data-fullscreen-toggle]').exists()).toBe(false)
     expect(supported.classes()).toContain('game-shell--reduced-motion')
   })
 })

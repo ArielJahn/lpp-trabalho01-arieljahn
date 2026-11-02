@@ -5,16 +5,14 @@ import EventDrawer from './EventDrawer.vue'
 import EventSummary from './EventSummary.vue'
 import OnionVillage from './OnionVillage.client.vue'
 import ResourcePanel from './ResourcePanel.vue'
-import { useGameFullscreen } from '~/composables/useGameFullscreen'
 import type { ClientEventRecord, ClientNotice } from '~/composables/useAriOnionSocket'
 import type { PlayerRole, PublicGameState } from '~/shared/arionion/contracts'
 
 defineProps<{ playerName: string; role: PlayerRole; state: PublicGameState; connected: boolean; notices: ClientNotice[]; events: ClientEventRecord[]; hideProduction: boolean }>()
-const emit = defineEmits<{ open: []; close: []; construct: []; upgrade: []; 'update:hideProduction': [value: boolean] }>()
+const emit = defineEmits<{ open: []; close: []; restart: []; construct: []; upgrade: []; 'update:hideProduction': [value: boolean] }>()
 const gameShell = ref<HTMLElement | null>(null)
 const eventDrawerOpen = ref(false)
 const reducedMotion = ref(false)
-const { isSupported, isFullscreen, toggleFullscreen } = useGameFullscreen(gameShell)
 let motionQuery: MediaQueryList | null = null
 
 function synchronizeMotion(event: MediaQueryListEvent | MediaQueryList) {
@@ -32,13 +30,12 @@ onBeforeUnmount(() => motionQuery?.removeEventListener?.('change', synchronizeMo
 </script>
 
 <template>
-  <div ref="gameShell" :class="['game-shell', { 'game-shell--fullscreen': isFullscreen, 'game-shell--reduced-motion': reducedMotion }]">
+  <div ref="gameShell" :class="['game-shell', { 'game-shell--reduced-motion': reducedMotion }]">
     <header class="game-header" data-region="game-header">
       <a class="brand" href="#" aria-label="AriOnion"><span aria-hidden="true">🧅</span>Ari<strong>Onion</strong></a>
       <div class="season-chip">{{ state.phase === 'open' ? '☀ Temporada aberta' : state.phase === 'closed' ? '🌙 Temporada encerrada' : '⏳ Aguardando o Mestre' }}</div>
       <div class="game-header__tools">
         <div class="identity"><span :class="['status-dot', { 'status-dot--online': connected }]" />{{ connected ? 'Ao vivo' : 'Conectando' }}<b>{{ role === 'master' ? 'Mestre' : 'Jogador' }} · {{ playerName }}</b></div>
-        <button v-if="isSupported" data-fullscreen-toggle type="button" :aria-pressed="isFullscreen" @click="toggleFullscreen">{{ isFullscreen ? '↙ Sair da tela cheia' : '⛶ Tela cheia' }}</button>
       </div>
     </header>
 
@@ -53,7 +50,7 @@ onBeforeUnmount(() => motionQuery?.removeEventListener?.('change', synchronizeMo
         <EventSummary :events="events" />
         <button data-open-events type="button" class="open-events" @click="eventDrawerOpen = true">📜 Abrir painel de eventos</button>
       </aside>
-      <div class="actions-region" data-region="actions"><ActionPanel :role="role" :state="state" :connected="connected" @open="emit('open')" @close="emit('close')" @construct="emit('construct')" @upgrade="emit('upgrade')" /></div>
+      <div class="actions-region" data-region="actions"><ActionPanel :role="role" :state="state" :connected="connected" @open="emit('open')" @close="emit('close')" @restart="emit('restart')" @construct="emit('construct')" @upgrade="emit('upgrade')" /></div>
     </main>
 
     <footer>Desenvolvido por <strong>Ariel Jahn</strong> · Programação Orientada a Eventos · 2026</footer>
@@ -63,7 +60,7 @@ onBeforeUnmount(() => motionQuery?.removeEventListener?.('change', synchronizeMo
 
 <style scoped>
 .game-shell { min-height: 100dvh; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; overflow-x: hidden; background: #f8edc9; color: #392d1b; }
-.game-shell--fullscreen { height: 100dvh; }.game-header { min-width: 0; display: grid; grid-template-columns: 1fr auto 1fr; gap: 1rem; align-items: center; padding: .8rem clamp(1rem, 3vw, 2rem); border-bottom: 4px solid #d99d45; background: #fff8df; box-shadow: 0 .3rem 0 #8c5d2620; }
+.game-header { min-width: 0; display: grid; grid-template-columns: 1fr auto 1fr; gap: 1rem; align-items: center; padding: .8rem clamp(1rem, 3vw, 2rem); border-bottom: 4px solid #d99d45; background: #fff8df; box-shadow: 0 .3rem 0 #8c5d2620; }
 .brand { display: flex; gap: .45rem; align-items: center; color: #392d1b; font: 900 1.45rem Georgia, serif; text-decoration: none; }.brand strong { color: #75952d; }.season-chip { justify-self: center; padding: .55rem .9rem; border-radius: 99px; background: #dff0a2; color: #466022; font-size: .72rem; font-weight: 900; letter-spacing: .05em; text-transform: uppercase; }
 .game-header__tools { min-width: 0; display: flex; justify-content: flex-end; gap: .8rem; align-items: center; }.game-header button { padding: .55rem .75rem; border: 2px solid #d8bc73; border-radius: .7rem; background: #fffdf2; color: #513b20; font-weight: 800; cursor: pointer; }.identity { min-width: 0; color: #71664f; font-size: .72rem; text-align: right; }.identity b { display: block; overflow: hidden; color: #41351f; text-overflow: ellipsis; white-space: nowrap; }.status-dot { display: inline-block; width: .5rem; height: .5rem; margin-right: .3rem; border-radius: 50%; background: #c66f58; }.status-dot--online { background: #70a63a; box-shadow: 0 0 0 4px #70a63a22; }
 .game-grid { min-width: 0; display: grid; grid-template: "resources world activity" minmax(25rem, 1fr) "actions actions actions" auto / minmax(15rem, 19rem) minmax(25rem, 1fr) minmax(14rem, 18rem); gap: 1rem; padding: 1rem; }.storybook-panel { min-width: 0; align-self: start; padding: 1rem; border: 3px solid #d5a653; border-radius: 1.25rem; background: #fff8dfe8; box-shadow: 0 .55rem 0 #75512620; }.resources-region { grid-area: resources; }.world-region { position: relative; min-width: 0; grid-area: world; }.activity-region { grid-area: activity; }.actions-region { min-width: 0; grid-area: actions; }

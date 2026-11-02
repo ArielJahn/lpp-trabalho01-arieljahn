@@ -28,6 +28,7 @@ function enter(name: string, selectedRole: PlayerRole) {
     :hide-production="client.hideProduction.value"
     @open="client.requestOpen"
     @close="client.requestClose"
+    @restart="client.restartSeason"
     @construct="client.requestConstruction"
     @upgrade="client.requestUpgrade"
     @update:hide-production="client.hideProduction.value = $event"

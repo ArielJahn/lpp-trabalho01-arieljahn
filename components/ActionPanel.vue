@@ -4,7 +4,7 @@ import { RULES } from '~/shared/arionion/rules'
 import type { PlayerRole, PublicGameState } from '~/shared/arionion/contracts'
 
 const props = withDefaults(defineProps<{ role: PlayerRole; state: PublicGameState; connected?: boolean }>(), { connected: true })
-const emit = defineEmits<{ open: []; close: []; construct: []; upgrade: [] }>()
+const emit = defineEmits<{ open: []; close: []; restart: []; construct: []; upgrade: [] }>()
 const building = computed(() => ({
   bed: { label: 'Construir canteiro', cost: `${RULES.bedCost} cebolas`, icon: '🌱' },
   'curing-shed': { label: 'Construir galpão de cura', cost: `${RULES.curingShedCost} cebolas`, icon: '🏚️' },
@@ -18,7 +18,7 @@ const building = computed(() => ({
     <div v-if="role === 'master'" class="actions">
       <button v-if="state.phase === 'waiting'" :disabled="!connected" @click="emit('open')">🌤️ Abrir temporada</button>
       <button v-else-if="state.phase === 'open'" class="button--danger" :disabled="!connected" @click="emit('close')">🌙 Encerrar temporada</button>
-      <span v-else class="closed-label">Temporada encerrada</span>
+      <button v-else data-restart-season :disabled="!connected" @click="emit('restart')">🧅 Nova temporada</button>
     </div>
     <div v-else class="actions">
       <button v-if="state.nextBuilding" :disabled="!connected || state.phase !== 'open'" @click="emit('construct')">
