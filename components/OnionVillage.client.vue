@@ -37,9 +37,9 @@ onBeforeUnmount(() => adapter.destroy())
 </template>
 
 <style scoped>
-.village-frame { position: relative; height: 100%; min-height: 25rem; overflow: hidden; border: .4rem solid #fff8df; border-radius: 1.5rem; background: #8ed6ef; box-shadow: 0 .8rem 0 #4e6f3530, 0 1.5rem 3rem #52632920; }
-.village-canvas { width: 100%; height: 100%; min-height: 25rem; display: grid; place-items: center; }
-.village-canvas :deep(canvas) { width: 100% !important; height: 100% !important; object-fit: cover; }
+.village-frame { position: relative; width: 100%; aspect-ratio: 16 / 9; min-height: 0; overflow: hidden; border: .4rem solid #fff8df; border-radius: 1.5rem; background: #8ed6ef; box-shadow: 0 .8rem 0 #4e6f3530, 0 1.5rem 3rem #52632920; }
+.village-canvas { position: absolute; inset: 0; min-width: 0; min-height: 0; display: grid; place-items: center; }
+.village-canvas :deep(canvas) { display: block; width: 100% !important; height: 100% !important; object-fit: cover; }
 .village-frame__badge { position: absolute; right: .8rem; bottom: .8rem; z-index: 2; padding: .35rem .6rem; border: 2px solid #fff3b5; border-radius: 99px; background: #3f5729dd; color: white; font-size: .65rem; font-weight: 800; pointer-events: none; }
-@media (max-width: 800px) { .village-frame, .village-canvas { min-height: 20rem; } }
+@media (max-width: 800px) { .village-frame { min-height: 18rem; } }
 </style>

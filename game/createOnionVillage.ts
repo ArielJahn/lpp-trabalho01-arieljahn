@@ -1,6 +1,7 @@
 import { EVENTS, type PublicGameState } from '~/shared/arionion/contracts'
 import { VISUAL_ASSETS } from './visualAssets'
 import { createReactionQueue, reactionForEvent, type VisualReaction } from './villageReactions'
+import { calculateVillageViewport } from './villageViewport'
 
 export interface VillagePayload {
   state?: PublicGameState
@@ -76,6 +77,7 @@ export async function createOnionVillage(container: HTMLElement, options: { redu
   let game: any
   let observer: ResizeObserver | null = null
   let destroyed = false
+  let viewport = calculateVillageViewport(container.clientWidth, container.clientHeight)
 
   class OnionScene extends Phaser.Scene {
     background: any
@@ -199,9 +201,9 @@ export async function createOnionVillage(container: HTMLElement, options: { redu
 
   await new Promise<void>((resolve) => {
     game = new Phaser.Game({
-      type: Phaser.AUTO, parent: container, width: Math.max(320, container.clientWidth), height: Math.max(320, container.clientHeight),
+      type: Phaser.AUTO, parent: container, width: viewport.width, height: viewport.height,
       transparent: true, scene: OnionScene, audio: { noAudio: true },
-      scale: { mode: Phaser.Scale.RESIZE, autoCenter: Phaser.Scale.CENTER_BOTH },
+      scale: { mode: Phaser.Scale.NONE, autoCenter: Phaser.Scale.CENTER_BOTH },
       callbacks: { postBoot: () => resolve() },
     })
   })
@@ -209,9 +211,10 @@ export async function createOnionVillage(container: HTMLElement, options: { redu
 
   observer = new ResizeObserver(([entry]) => {
     if (!entry || destroyed) return
-    const width = Math.max(320, Math.round(entry.contentRect.width))
-    const height = Math.max(320, Math.round(entry.contentRect.height))
-    game?.scale.resize(width, height)
+    const next = calculateVillageViewport(entry.contentRect.width, entry.contentRect.height)
+    if (next.width === viewport.width && next.height === viewport.height) return
+    viewport = next
+    game?.scale.resize(viewport.width, viewport.height)
   })
   observer.observe(container)
 
