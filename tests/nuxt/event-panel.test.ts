@@ -9,17 +9,19 @@ const records = [
 ]
 
 describe('EventPanel', () => {
-  it('shows direction, time, cause, data and reaction', () => {
+  it('shows every academic event field and the production filter', () => {
     const wrapper = mount(EventPanel, { props: { events: records, hideProduction: false } })
     expect(wrapper.text()).toContain('⬆ emit')
     expect(wrapper.text()).toContain('⬇ on')
     expect(wrapper.text()).toContain('10:00:01')
+    expect(wrapper.text()).toContain('cebolal.iniciado')
     expect(wrapper.text()).toContain('causa: cebolal.abertura_solicitada')
     expect(wrapper.text()).toContain('dados: fase: aberta')
     expect(wrapper.text()).toContain('reação: abre a temporada')
+    expect(wrapper.text()).toContain('Ocultar produção frequente')
   })
 
-  it('filters only resource production events', async () => {
+  it('filters only resource production events', () => {
     const wrapper = mount(EventPanel, { props: { events: records, hideProduction: true } })
     expect(wrapper.text()).not.toContain('recurso.produzido')
     expect(wrapper.text()).toContain('cebolal.iniciado')

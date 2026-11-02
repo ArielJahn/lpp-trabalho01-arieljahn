@@ -38,7 +38,7 @@ const visible = computed(() => props.events.filter(event => !(props.hideProducti
 </template>
 
 <style scoped>
-.event-panel { padding: 1.25rem; border: 1px solid #d8dfc5; border-radius: 1rem; background: #fbfff2; }
+.event-panel { min-width: 0; }
 .event-panel__header { display: flex; justify-content: space-between; gap: 1rem; align-items: start; }
 .event-panel h2, .event-panel p { margin-top: 0; }
 .eyebrow { color: #667044; font-size: .75rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
