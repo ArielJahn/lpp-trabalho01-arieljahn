@@ -25,6 +25,10 @@ Abra o endereço exibido pelo Nuxt em cada navegador ou dispositivo conectado à
 
 O Painel de Eventos torna visível a cadeia pedido → fato → reação. Exemplos: `cebolal.abertura_solicitada` → `cebolal.iniciado`, `construcao.solicitada` → `construcao.iniciada`/`construcao.concluida`, `cebolal.reinicio_solicitado` → `cebolal.reiniciado`. Operações inválidas geram `operacao.recusada` apenas ao solicitante.
 
+## Interface e animações
+
+A HUD em Vue se reorganiza para desktop e celular, enquanto o mundo Phaser preserva o enquadramento 16:9 e cobre todo o quadro ilustrado. Não há botão próprio de tela cheia; use o recurso nativo do navegador quando necessário. As cebolas ociosas, trabalhando, chorando, brotando ou celebrando são reações visuais aos fatos recebidos e nunca alteram as regras autoritativas do servidor. O painel lateral permite consultar o histórico completo e ocultar eventos repetitivos de produção.
+
 ## Verificação
 
 ```bash

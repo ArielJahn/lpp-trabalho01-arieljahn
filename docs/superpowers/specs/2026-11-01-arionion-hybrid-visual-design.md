@@ -1,4 +1,4 @@
-# AriOnion — Design visual híbrido em tela cheia
+# AriOnion — Design visual híbrido responsivo
 
 ## Intenção
 
@@ -29,7 +29,7 @@ Nenhuma decisão visual poderá remover, ocultar de forma inacessível ou substi
 
 ## Objetivos
 
-- Exibir o jogo usando toda a área útil da janela, com opção de entrar e sair do modo de tela cheia do navegador.
+- Exibir o jogo usando toda a área útil da janela; a tela cheia fica a cargo do controle nativo do navegador, sem botão próprio na HUD.
 - Adotar a direção “livro ilustrado”: formas arredondadas, cores ensolaradas, texturas leves e personagens expressivos.
 - Corrigir desalinhamentos por meio de regiões de layout estáveis, sem textos ou personagens sobrepostos.
 - Usar um modelo híbrido: Phaser para o mundo animado e Nuxt/Vue para a interface, os recursos e os comandos.
@@ -102,9 +102,9 @@ Em larguras menores, o mundo aparece primeiro e ocupa toda a largura. Estoques e
 
 O layout usa `minmax`, limites de largura, `aspect-ratio`, `clamp` e áreas nomeadas de grid. Coordenadas absolutas ficam restritas ao interior do mundo Phaser, cujo sistema de coordenadas é controlado pela câmera.
 
-### Modo de tela cheia
+### Área útil e tela cheia
 
-Um botão explícito usa a Fullscreen API no contêiner raiz. O rótulo e o ícone mudam conforme `fullscreenchange`. Se a API não estiver disponível, o botão fica oculto e o jogo continua ocupando a janela normalmente. `Esc` continua sendo o mecanismo nativo para sair.
+O contêiner raiz ocupa a janela normalmente e o mundo mantém proporção 16:9 sem deixar faixas azuis. Não há botão de tela cheia na HUD, conforme ajuste aprovado; quando desejado, o usuário utiliza o recurso nativo do navegador.
 
 ## Responsabilidade do Phaser
 
@@ -129,7 +129,6 @@ Nuxt/Vue renderiza:
 - ações de Mestre e Jogador;
 - avisos de sucesso e recusa;
 - Painel de Eventos obrigatório;
-- botão de tela cheia;
 - reorganização responsiva da HUD.
 
 O estado exibido continua vindo das props e do composable Socket.IO existente. Nenhum componente visual cria um segundo estado de domínio.
@@ -195,12 +194,11 @@ Para qualquer ativo externo, registrar autor, origem, licença e alterações em
 - Emoção e cor não são os únicos meios de comunicar um fato; avisos textuais permanecem.
 - Texto mantém contraste adequado sobre painéis opacos.
 - O canvas possui nome acessível, mas as informações essenciais também existem na HUD.
-- O botão de tela cheia informa `aria-pressed` e seu estado atual.
 
 ## Verificação
 
 - Teste unitário do adaptador confirma o mapeamento de cada evento para a reação correta.
-- Testes de componente confirmam HUD, ações e estado de tela cheia sem depender do canvas real.
+- Testes de componente confirmam HUD e ações sem depender do canvas real.
 - Testes de redimensionamento verificam classes/estrutura responsiva e ausência de overflow horizontal.
 - Teste de ciclo de vida confirma destruição do Phaser e remoção de listeners.
 - Teste manual em desktop, janela estreita e celular verifica que painéis, canvas, balões e ações não se sobrepõem.
@@ -210,7 +208,7 @@ Para qualquer ativo externo, registrar autor, origem, licença e alterações em
 
 ## Critérios de aceitação
 
-- A tela inicial do jogo utiliza toda a janela e oferece modo de tela cheia quando suportado.
+- A tela inicial do jogo utiliza toda a janela e permanece coerente quando o navegador entra em tela cheia.
 - O visual segue a direção de livro ilustrado aprovada.
 - Nenhum elemento essencial fica desalinhado ou encoberto nas larguras verificadas.
 - Há animações visíveis para ociosidade, produção, brotamento, construção, melhoria, recusa e encerramento.
