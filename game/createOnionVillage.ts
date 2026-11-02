@@ -1,7 +1,7 @@
 import { EVENTS, type PublicGameState } from '~/shared/arionion/contracts'
 import { VISUAL_ASSETS } from './visualAssets'
 import { createReactionQueue, reactionForEvent, type VisualReaction } from './villageReactions'
-import { shouldShowSeasonOverlay } from './villagePresentation'
+import { shouldRunVillageEffects, shouldShowSeasonOverlay } from './villagePresentation'
 import { calculateVillageViewport } from './villageViewport'
 
 export interface VillagePayload {
@@ -139,11 +139,13 @@ export async function createOnionVillage(container: HTMLElement, options: { redu
     }
     syncState(state?: PublicGameState) {
       if (!state || !this.background) return
-      const returningToWaiting = state.phase === 'waiting' && this.currentState?.phase !== 'waiting'
-      if (returningToWaiting) {
+      const effectsActive = shouldRunVillageEffects(state.phase)
+      if (!effectsActive) {
         reactions.clear()
         this.clearCollection(this.transients)
         this.playingReaction = false
+        this.time.removeAllEvents()
+        this.cameras.main.resetFX()
       }
       this.currentState = state
       this.clearCollection(this.structures)
@@ -161,8 +163,11 @@ export async function createOnionVillage(container: HTMLElement, options: { redu
       for (let index = 0; index < state.workers.limit; index++) this.addWorker(index, index < state.workers.busy)
       this.banner.setText(state.phase === 'open' ? `Cebolal aberto · nível ${state.upgradeLevel}` : state.phase === 'closed' ? 'Temporada encerrada' : 'Aguardando o Mestre')
       this.synchronizeOverlay(state.phase)
+      if (effectsActive) this.tweens.resumeAll()
+      else this.tweens.pauseAll()
     }
     enqueue(reaction: VisualReaction) {
+      if (!this.currentState || !shouldRunVillageEffects(this.currentState.phase)) return
       reactions.enqueue(reaction)
       this.playNextReaction()
     }
@@ -234,7 +239,7 @@ export async function createOnionVillage(container: HTMLElement, options: { redu
 
   const react = (event: string, payload: VillagePayload) => {
     scene.syncState(payload.state)
-    scene.enqueue(reactionForEvent(event, payload))
+    if (payload.state && shouldRunVillageEffects(payload.state.phase)) scene.enqueue(reactionForEvent(event, payload))
   }
   return {
     sync(payload) { scene.syncState(payload.state) },
@@ -245,7 +250,7 @@ export async function createOnionVillage(container: HTMLElement, options: { redu
     onionSprouted(payload) { react(EVENTS.onionSprouted, payload) },
     upgradeCompleted(payload) { react(EVENTS.upgradeCompleted, payload) },
     rejected(payload) { react(EVENTS.operationRejected, payload) },
-    seasonClosed(payload) { react(EVENTS.seasonClosed, payload) },
+    seasonClosed(payload) { scene.syncState(payload.state) },
     destroy() {
       if (destroyed) return
       destroyed = true

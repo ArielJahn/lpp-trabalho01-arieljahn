@@ -7,3 +7,7 @@ export function eventsAfterId<T extends { id: number }>(events: readonly T[], la
 export function shouldShowSeasonOverlay(phase: GamePhase): boolean {
   return phase === 'closed'
 }
+
+export function shouldRunVillageEffects(phase: GamePhase): boolean {
+  return phase === 'open'
+}
