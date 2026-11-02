@@ -1,14 +1,33 @@
 import { mount } from '@vue/test-utils'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import EntryScreen from '../../components/EntryScreen.vue'
 import ResourcePanel from '../../components/ResourcePanel.vue'
 import ActionPanel from '../../components/ActionPanel.vue'
+import EventSummary from '../../components/EventSummary.vue'
 import GameDashboard from '../../components/GameDashboard.vue'
 import { createInitialState, type PublicGameState } from '../../shared/arionion/contracts'
 
 function state(overrides: Partial<PublicGameState> = {}): PublicGameState {
   return { ...createInitialState(), nextBuilding: 'bed', upgradeCost: 20, ...overrides }
 }
+
+const events = Array.from({ length: 4 }, (_, index) => ({
+  id: index + 1, direction: 'on' as const, name: `evento.${index + 1}`, time: `10:00:0${index}`,
+  reaction: `reação ${index + 1}`, kind: 'fact' as const,
+}))
+
+function dashboardProps() {
+  return {
+    playerName: 'Ariel', role: 'player' as const, state: state({ phase: 'open' }), connected: true,
+    notices: [{ text: 'Obra concluída!', type: 'success' as const }], events, hideProduction: false,
+  }
+}
+
+afterEach(() => {
+  vi.restoreAllMocks()
+  delete (HTMLElement.prototype as { requestFullscreen?: unknown }).requestFullscreen
+  document.body.innerHTML = ''
+})
 
 describe('AriOnion dashboard', () => {
   it('enters with a name and selected role', async () => {
@@ -32,7 +51,6 @@ describe('AriOnion dashboard', () => {
     const master = mount(ActionPanel, { props: { role: 'master', state: state() } })
     expect(master.text()).toContain('Abrir temporada')
     expect(master.text()).not.toContain('Construir canteiro')
-
     const player = mount(ActionPanel, { props: { role: 'player', state: state({ phase: 'open' }) } })
     expect(player.text()).toContain('Construir canteiro')
     expect(player.text()).toContain('30 cebolas')
@@ -40,13 +58,40 @@ describe('AriOnion dashboard', () => {
     expect(player.emitted('construct')).toHaveLength(1)
   })
 
-  it('renders notices, event panel and student footer', () => {
-    const wrapper = mount(GameDashboard, { global: { stubs: { OnionVillage: true } }, props: {
-      playerName: 'Ariel', role: 'player', state: state({ phase: 'open' }), connected: true,
-      notices: [{ text: 'Obra concluída!', type: 'success' }], events: [], hideProduction: false,
-    } })
+  it('limits the activity preview to the three newest events', () => {
+    const wrapper = mount(EventSummary, { props: { events } })
+    expect(wrapper.findAll('[data-event-summary-item]')).toHaveLength(3)
+    expect(wrapper.text()).toContain('evento.4')
+    expect(wrapper.text()).not.toContain('evento.1')
+  })
+
+  it('renders the five stable game regions and preserves required content', () => {
+    const wrapper = mount(GameDashboard, { global: { stubs: { OnionVillage: true } }, props: dashboardProps() })
+    for (const region of ['game-header', 'resources', 'world', 'activity', 'actions']) {
+      expect(wrapper.find(`[data-region="${region}"]`).exists()).toBe(true)
+    }
     expect(wrapper.text()).toContain('Obra concluída!')
-    expect(wrapper.text()).toContain('Painel de eventos')
+    expect(wrapper.text()).toContain('Construir canteiro')
     expect(wrapper.text()).toContain('Ariel Jahn')
+  })
+
+  it('opens the complete event drawer from the activity region', async () => {
+    const wrapper = mount(GameDashboard, { attachTo: document.body, global: { stubs: { OnionVillage: true } }, props: dashboardProps() })
+    await wrapper.get('[data-open-events]').trigger('click')
+    expect(document.querySelector('[role="dialog"]')).not.toBeNull()
+    wrapper.unmount()
+  })
+
+  it('shows fullscreen only when supported and exposes reduced-motion state', async () => {
+    const unsupported = mount(GameDashboard, { global: { stubs: { OnionVillage: true } }, props: dashboardProps() })
+    expect(unsupported.find('[data-fullscreen-toggle]').exists()).toBe(false)
+    unsupported.unmount()
+
+    Object.defineProperty(HTMLElement.prototype, 'requestFullscreen', { configurable: true, value: vi.fn() })
+    vi.spyOn(window, 'matchMedia').mockReturnValue({ matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() } as unknown as MediaQueryList)
+    const supported = mount(GameDashboard, { global: { stubs: { OnionVillage: true } }, props: dashboardProps() })
+    await supported.vm.$nextTick()
+    expect(supported.find('[data-fullscreen-toggle]').exists()).toBe(true)
+    expect(supported.classes()).toContain('game-shell--reduced-motion')
   })
 })

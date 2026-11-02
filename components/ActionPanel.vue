@@ -32,11 +32,11 @@ const building = computed(() => ({
 </template>
 
 <style scoped>
-.action-panel { display: flex; justify-content: space-between; gap: 1rem; align-items: center; padding: 1.1rem 1.25rem; border-radius: 1rem; background: #26351d; color: white; }
+.action-panel { min-width: 0; display: flex; justify-content: space-between; gap: 1rem; align-items: center; padding: .9rem 1.1rem; border: 3px solid #68461f; border-radius: 1.15rem; background: #3f5729; color: white; box-shadow: 0 .45rem 0 #50361f33; }
 .eyebrow { margin: 0 0 .25rem; color: #afbd7a; font-size: .7rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
 h2 { margin: 0; font: 700 1.25rem Georgia, serif; }
-button { display: flex; gap: .7rem; align-items: center; padding: .75rem 1rem; border: 0; border-radius: .75rem; background: #dbe875; color: #26351d; cursor: pointer; }
+button { min-height: 4rem; display: flex; gap: .7rem; align-items: center; justify-content: center; padding: .75rem 1.1rem; border: 2px solid #fff3b5; border-radius: .85rem; background: #f2c85d; color: #3e2d12; box-shadow: 0 .32rem 0 #ad7028; cursor: pointer; }
 button strong, button small { display: block; text-align: left; } button small { margin-top: .15rem; color: #58642f; }
-button:disabled { opacity: .45; cursor: not-allowed; }.button--danger { background: #e6bd91; }.closed-label { color: #c6cbb4; }
+button:disabled { opacity: .45; box-shadow: none; cursor: not-allowed; }.button--danger { background: #e6aa82; }.closed-label { color: #f0e8c8; }
 @media (max-width: 650px) { .action-panel { align-items: stretch; flex-direction: column; } button { width: 100%; } }
 </style>

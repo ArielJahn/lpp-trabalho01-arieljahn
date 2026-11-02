@@ -31,15 +31,16 @@ const steps = computed(() => [
 .section-heading { display: flex; justify-content: space-between; gap: 1rem; align-items: start; }
 .eyebrow { margin: 0 0 .3rem; color: #788147; font-size: .72rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
 h2 { margin: 0; color: #263319; font: 700 1.55rem Georgia, serif; }
-.worker-pill { padding: .55rem .8rem; border-radius: 99px; background: #edf1dc; color: #4d5931; font-size: .82rem; font-weight: 700; }
-.resource-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: .8rem; margin-top: 1.25rem; }
-article { display: flex; gap: .8rem; align-items: center; padding: 1rem; border: 1px solid #e1e3d2; border-radius: 1rem; background: #fff; }
+.worker-pill { flex: none; padding: .5rem .7rem; border-radius: 99px; background: #e2efad; color: #4d5931; font-size: .75rem; font-weight: 800; }
+.resource-grid { display: grid; grid-template-columns: 1fr; gap: .6rem; margin-top: 1rem; }
+article { min-width: 0; display: flex; gap: .7rem; align-items: center; padding: .75rem; border: 2px solid #ead59e; border-radius: .9rem; background: #fffdf3; }
 .resource-icon { width: 2.8rem; height: 2.8rem; display: grid; place-items: center; border-radius: .8rem; background: #f1e8ba; font-size: 1.5rem; }
 .resource-icon--cured { background: #ffedb4; }.resource-icon--jar { background: #e8d9c9; }
 article small { display: block; color: #757b68; } article strong { color: #2c351f; font-size: 1.45rem; }
-.progress-track { display: grid; grid-template-columns: repeat(4, 1fr); gap: .5rem; margin-top: 1rem; }
+.progress-track { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .45rem; margin-top: .8rem; }
 .progress-step { display: flex; gap: .4rem; align-items: center; padding: .65rem; border-radius: .7rem; background: #f0f1ea; color: #7a7d70; }
 .progress-step--complete { background: #e3edbe; color: #40531f; }
 .progress-step span { font-weight: 900; }.progress-step small { font-weight: 700; }
-@media (max-width: 700px) { .resource-grid { grid-template-columns: 1fr; } .progress-track { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 1050px) and (min-width: 681px) { .resource-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } .progress-track { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+@media (max-width: 430px) { .section-heading { flex-direction: column; }.worker-pill { align-self: flex-start; } }
 </style>
