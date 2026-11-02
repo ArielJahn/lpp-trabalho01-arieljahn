@@ -1,6 +1,7 @@
 import { EVENTS, type PublicGameState } from '~/shared/arionion/contracts'
 import { VISUAL_ASSETS } from './visualAssets'
 import { createReactionQueue, reactionForEvent, type VisualReaction } from './villageReactions'
+import { shouldShowSeasonOverlay } from './villagePresentation'
 import { calculateVillageViewport } from './villageViewport'
 
 export interface VillagePayload {
@@ -51,7 +52,8 @@ export function createOnionVillageAdapter(): OnionVillageAdapter {
   }
   return {
     ready(nextDriver) {
-      if (destroyed || driver) return
+      if (destroyed) { nextDriver.destroy(); return }
+      if (driver) return
       driver = nextDriver
       for (const [event, payload] of queue.splice(0)) dispatch(event, payload)
     },
@@ -137,6 +139,12 @@ export async function createOnionVillage(container: HTMLElement, options: { redu
     }
     syncState(state?: PublicGameState) {
       if (!state || !this.background) return
+      const returningToWaiting = state.phase === 'waiting' && this.currentState?.phase !== 'waiting'
+      if (returningToWaiting) {
+        reactions.clear()
+        this.clearCollection(this.transients)
+        this.playingReaction = false
+      }
       this.currentState = state
       this.clearCollection(this.structures)
       this.clearCollection(this.workers)
@@ -152,6 +160,7 @@ export async function createOnionVillage(container: HTMLElement, options: { redu
       }
       for (let index = 0; index < state.workers.limit; index++) this.addWorker(index, index < state.workers.busy)
       this.banner.setText(state.phase === 'open' ? `Cebolal aberto · nível ${state.upgradeLevel}` : state.phase === 'closed' ? 'Temporada encerrada' : 'Aguardando o Mestre')
+      this.synchronizeOverlay(state.phase)
     }
     enqueue(reaction: VisualReaction) {
       reactions.enqueue(reaction)
@@ -185,9 +194,14 @@ export async function createOnionVillage(container: HTMLElement, options: { redu
       if (reducedMotion) this.time.delayedCall(240, finish)
       else this.tweens.add({ targets: [actor, label], y: '-=22', alpha: { from: 1, to: 0 }, duration: 1250, hold: 400, ease: 'Sine.out', onComplete: finish })
     }
-    closeOverlay() {
-      this.overlay?.destroy()
-      this.overlay = this.add.rectangle(this.scale.width / 2, this.scale.height / 2, this.scale.width, this.scale.height, 0x26351d, .4).setDepth(25)
+    synchronizeOverlay(phase: PublicGameState['phase']) {
+      if (!shouldShowSeasonOverlay(phase)) {
+        this.overlay?.destroy()
+        this.overlay = null
+        return
+      }
+      if (!this.overlay) this.overlay = this.add.rectangle(0, 0, 1, 1, 0x26351d, .4).setDepth(25)
+      this.overlay.setPosition(this.scale.width / 2, this.scale.height / 2).setDisplaySize(this.scale.width, this.scale.height)
       this.banner.setDepth(30)
     }
     dispose() {
@@ -231,7 +245,7 @@ export async function createOnionVillage(container: HTMLElement, options: { redu
     onionSprouted(payload) { react(EVENTS.onionSprouted, payload) },
     upgradeCompleted(payload) { react(EVENTS.upgradeCompleted, payload) },
     rejected(payload) { react(EVENTS.operationRejected, payload) },
-    seasonClosed(payload) { react(EVENTS.seasonClosed, payload); scene.closeOverlay() },
+    seasonClosed(payload) { react(EVENTS.seasonClosed, payload) },
     destroy() {
       if (destroyed) return
       destroyed = true

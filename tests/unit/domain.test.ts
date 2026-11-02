@@ -134,7 +134,7 @@ describe('domain progression', () => {
     expect(restartSeason(closed, player).rejection?.reason).toContain('Mestre')
     expect(restartSeason(open, master).rejection?.reason).toContain('encerrada')
     const restarted = restartSeason(closed, master)
-    expect(restarted.state).toEqual(createInitialState())
+    expect(restarted.state).toEqual({ ...createInitialState(), seasonId: closed.seasonId })
     expect(restarted.facts[0]).toMatchObject({ event: 'cebolal.reiniciado', cause: 'cebolal.reinicio_solicitado' })
   })
 })

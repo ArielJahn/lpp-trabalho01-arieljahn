@@ -53,4 +53,14 @@ describe('OnionVillageAdapter', () => {
     adapter.handle(EVENTS.seasonStarted, { state: createInitialState() })
     expect(fake.calls).toEqual(['destroy'])
   })
+
+  it('immediately destroys a driver that becomes ready after adapter teardown', () => {
+    const fake = driver()
+    const adapter = createOnionVillageAdapter()
+    adapter.destroy()
+
+    adapter.ready(fake.instance)
+
+    expect(fake.calls).toEqual(['destroy'])
+  })
 })

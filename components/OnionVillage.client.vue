@@ -3,17 +3,19 @@ import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { EVENTS, type PublicGameState } from '~/shared/arionion/contracts'
 import type { ClientEventRecord } from '~/composables/useAriOnionSocket'
 import { createOnionVillage, createOnionVillageAdapter } from '~/game/createOnionVillage'
+import { eventsAfterId } from '~/game/villagePresentation'
+import { VILLAGE_FRAME_STYLE } from '~/game/villageViewport'
 
 const props = defineProps<{ state: PublicGameState; events: ClientEventRecord[] }>()
 const container = ref<HTMLElement | null>(null)
 const adapter = createOnionVillageAdapter()
-let processed = props.events.length
+let lastProcessedId = props.events.at(-1)?.id ?? 0
 
-watch(() => props.events.length, () => {
-  for (const event of props.events.slice(processed)) {
+watch(() => props.events.at(-1)?.id, () => {
+  for (const event of eventsAfterId(props.events, lastProcessedId)) {
     if (event.direction === 'on') adapter.handle(event.name, { ...(event.payload ?? {}), state: props.state })
+    lastProcessedId = Math.max(lastProcessedId, event.id)
   }
-  processed = props.events.length
 })
 
 watch(() => props.state, state => adapter.handle(EVENTS.stateSynchronized, { state }), { deep: true })
@@ -30,7 +32,7 @@ onBeforeUnmount(() => adapter.destroy())
 </script>
 
 <template>
-  <div class="village-frame">
+  <div class="village-frame" :style="VILLAGE_FRAME_STYLE">
     <div ref="container" class="village-canvas" aria-label="Mapa animado do Cebolal" />
     <span class="village-frame__badge">Phaser · ao vivo</span>
   </div>
@@ -41,5 +43,4 @@ onBeforeUnmount(() => adapter.destroy())
 .village-canvas { position: absolute; inset: 0; min-width: 0; min-height: 0; display: grid; place-items: center; }
 .village-canvas :deep(canvas) { display: block; width: 100% !important; height: 100% !important; object-fit: cover; }
 .village-frame__badge { position: absolute; right: .8rem; bottom: .8rem; z-index: 2; padding: .35rem .6rem; border: 2px solid #fff3b5; border-radius: 99px; background: #3f5729dd; color: white; font-size: .65rem; font-weight: 800; pointer-events: none; }
-@media (max-width: 800px) { .village-frame { min-height: 18rem; } }
 </style>

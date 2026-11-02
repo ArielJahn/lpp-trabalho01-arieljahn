@@ -28,7 +28,9 @@ export function closeSeason(state: GameState, actor: PlayerIdentity): Transition
 export function restartSeason(state: GameState, actor: PlayerIdentity): Transition {
   if (actor.role !== 'master') return reject(state, 'Somente o Mestre pode iniciar uma nova temporada')
   if (state.phase !== 'closed') return reject(state, 'A temporada precisa estar encerrada')
-  return result(createInitialState(), {
+  const next = createInitialState()
+  next.seasonId = state.seasonId
+  return result(next, {
     facts: [{ event: 'cebolal.reiniciado', cause: 'cebolal.reinicio_solicitado' }],
   })
 }

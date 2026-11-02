@@ -70,4 +70,24 @@ describe('authoritative runtime', () => {
     expect(runtime.processEffect({ type: 'beds.produce', dueAt: 6_000, seasonId: 1 })).toEqual([])
     expect(runtime.dispatch('m', EVENTS.openingRequested)[0]?.event).toBe(EVENTS.seasonStarted)
   })
+
+  it('never accepts an old production effect after the restarted season is reopened', () => {
+    const scheduled: import('../../server/arionion/domain').ScheduledEffect[] = []
+    const runtime = createGameRuntime({ now: () => 1_000, scheduler: { schedule: effect => scheduled.push(effect), cancelSeason: () => {} } })
+    runtime.connect({ socketId: 'm', name: 'Mestre', role: 'master' })
+    runtime.connect({ socketId: 'p', name: 'Ari', role: 'player' })
+    runtime.dispatch('m', EVENTS.openingRequested)
+    const oldProduction = scheduled.find(effect => effect.type === 'beds.produce')!
+    runtime.dispatch('m', EVENTS.closingRequested)
+    runtime.dispatch('m', EVENTS.restartRequested)
+    runtime.dispatch('m', EVENTS.openingRequested)
+    runtime.dispatch('p', EVENTS.constructionRequested)
+    const newCompletion = scheduled.find(effect => effect.type === 'construction.complete' && effect.seasonId === runtime.snapshot().seasonId)!
+    runtime.processEffect(newCompletion)
+    const before = runtime.snapshot().rawOnions
+
+    expect(runtime.processEffect(oldProduction)).toEqual([])
+    expect(runtime.snapshot().rawOnions).toBe(before)
+    expect(runtime.snapshot().seasonId).toBe(2)
+  })
 })
