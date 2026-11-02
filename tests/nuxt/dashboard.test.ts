@@ -41,7 +41,7 @@ describe('AriOnion dashboard', () => {
   })
 
   it('renders notices, event panel and student footer', () => {
-    const wrapper = mount(GameDashboard, { props: {
+    const wrapper = mount(GameDashboard, { global: { stubs: { OnionVillage: true } }, props: {
       playerName: 'Ariel', role: 'player', state: state({ phase: 'open' }), connected: true,
       notices: [{ text: 'Obra concluída!', type: 'success' }], events: [], hideProduction: false,
     } })

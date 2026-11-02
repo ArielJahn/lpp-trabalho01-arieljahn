@@ -17,6 +17,7 @@ export interface ClientEventRecord {
   data?: string
   reaction?: string
   kind: ClientEventKind
+  payload?: Record<string, unknown>
 }
 export interface ClientNotice { text: string; type: 'info' | 'success' | 'error' }
 
@@ -71,7 +72,7 @@ export function createAriOnionClient(factory?: SocketFactory) {
     const safe = payload ?? {}
     if (safe.state && typeof safe.state === 'object') state.value = structuredClone(safe.state as PublicGameState)
     register({ direction: 'on', name, cause: typeof safe.cause === 'string' ? safe.cause : undefined,
-      data: summarize(safe), reaction: reactions[name] ?? 'atualiza a interface', kind: 'fact' })
+      data: summarize(safe), reaction: reactions[name] ?? 'atualiza a interface', kind: 'fact', payload: safe })
   }
   const request = (name: string) => {
     register({ direction: 'emit', name, kind: 'request' })
@@ -100,7 +101,7 @@ export function createAriOnionClient(factory?: SocketFactory) {
         const reason = typeof safe.reason === 'string' ? safe.reason : 'Operação recusada'
         register({ direction: 'on', name: EVENTS.operationRejected,
           cause: typeof safe.cause === 'string' ? safe.cause : undefined, data: reason,
-          reaction: 'mostra o motivo somente para quem pediu', kind: 'rejection' })
+          reaction: 'mostra o motivo somente para quem pediu', kind: 'rejection', payload: safe })
         notice(reason, 'error')
       })
     },
